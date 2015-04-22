@@ -1,4 +1,4 @@
-#nodejs-reference-app-voice
+#node-voice-reference-app
 
 
 ## Install

@@ -1,5 +1,5 @@
 {
-  "name": "nodejs-reference-app-voice",
+  "name": "node-voice-reference-app",
   "version": "0.0.1",
   "description": "voice demo",
   "main": "index.js",

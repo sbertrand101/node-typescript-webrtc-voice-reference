@@ -127,7 +127,7 @@ server.route({
     Application.create({
       name: user.userName,
       incomingCallUrl: config.baseUrl + "/users/" + encodeURIComponent(user.userName) + "/callback",
-      autoAnswer: true
+      autoAnswer: false
     })
     .then(function(application){
       user.application = application;
