@@ -27,7 +27,7 @@ catapult.PhoneNumber.prototype = thenifyAll(catapult.PhoneNumber.prototype);
 catapult.Domain.prototype = thenifyAll(catapult.Domain.prototype);
 catapult.Call.prototype = thenifyAll(catapult.Call.prototype);
 catapult.Bridge.prototype = thenifyAll(catapult.Bridge.prototype);
-thenifyAll.withCallback(server, server, ["start"]);
+thenifyAll.withCallback(server, server, ["start", "register"]);
 
 
 server.connection({ port: process.env.PORT || 3000, host: process.env.HOST || "0.0.0.0" });
@@ -125,6 +125,19 @@ function processEvent(ev, user){
       break;
   }
 }
+
+// Logs
+
+server.ext("onPreHandler", function(req, reply){
+  server.log(["body"], req.method.toUpperCase() + " " + req.url.path + " request data: " + JSON.stringify(req.payload || {}));
+  reply.continue();
+});
+
+
+server.ext("onPostHandler", function(req, reply){
+  server.log(["body"], req.method.toUpperCase() + " " + req.url.path + " response data: " + JSON.stringify(req.response.source || {}));
+  reply.continue();
+});
 
 // Routes
 
@@ -299,6 +312,18 @@ fs.exists(usersPath)
 })
 .then(function(d){
   domain = d;
+  return server.register({
+    register: require("good"),
+    options: {
+    opsInterval: 10000,
+      reporters: [{
+          reporter: require("good-console"),
+          events: { log: "*", response: "*", request: "*", error: "*" }
+      }]
+    }
+  });
+})
+.then(function(){
   debug("Start the server");
   return server.start();
 })
