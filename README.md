@@ -12,6 +12,8 @@ Before run them fill config file (config.json) with right values:
 
 After that run `npm install`  to install dependencies.
 
+If you use node < 0.12 please run `npm install bluebird` to add promisses support (node 0.12+ has native promoses implementation).
+
 You can run this demo  like `node index.js` on local machine if you have ability to handle external requests or use any external hosting.
 
 ## Deploy on Heroku
