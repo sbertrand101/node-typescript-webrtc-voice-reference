@@ -2,7 +2,7 @@
 
 
 ## Install
-Before run them fill config file (config.json) with right values:
+Before running, fill config file (config.json) with right values:
 
 `domain` - domain name (it will be created by the app if need),
 
