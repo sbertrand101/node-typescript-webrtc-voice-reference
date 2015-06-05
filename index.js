@@ -14,8 +14,8 @@ var Promise = require("bluebird");
 var server = new Hapi.Server(); //server instance
 
 // configure Catapult API
-if(config.catapultBase){
-	catapult.Client.globalOptions.apiEndPoint = config.catapultBase;
+if(config.environment && config.environment != "prod"){
+	catapult.Client.globalOptions.apiEndPoint = "https://api." + config.environment + ".catapult.inetwork.com";
 }
 
 catapult.Client.globalOptions.userId = config.catapultUserId;
@@ -252,12 +252,19 @@ server.route({
 			.then(function(authToken) {
 				console.log("username:", user.endpoint.name);
 				console.log("authToken:", authToken.token);
+
+				var webrtcEnv = "";
+				if(config.environment && config.environment != "prod"){
+					webrtcEnv = "-"+ config.environment;
+				}
+
 				reply.view("calldemo", {
 					username: user.endpoint.name,
 					authToken: authToken.token,
 					authTokenDisplayData: JSON.stringify(authToken, null, 3),
 					userData: JSON.stringify(user, null, 3),
-					phoneNumber: user.phoneNumber
+					phoneNumber: user.phoneNumber,
+					webrtcEnv: webrtcEnv
 				});
 			});
 	}
