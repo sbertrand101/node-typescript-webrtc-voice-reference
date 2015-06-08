@@ -134,12 +134,11 @@
         </div>
 
 		<script>
-			console.log("TEST");
 			var config = {
 				authToken: "{{authToken}}" || undefined,
 				password: "{{password}}" || undefined,
 				username: "{{username}}" || undefined,
-			    domain: "nathantest2.bwapp-stage.stage.bwsip.io",
+			    domain: "{{domain}}",
 			    logLevel: "debug"
 			};
 
@@ -164,7 +163,6 @@
 			updateUI();
 
 			$("#connectCall").click(function () {
-				console.log("connect call clicked");
 			    var dest = $("#toField").val();
 			    call = phone.call(dest);
 			    call.setRemoteAudioElement(document.getElementById("remote-audio"));
@@ -182,7 +180,6 @@
 			    call.accept();
 			});
 			$('#reject').click(function(){
-			    console.log("REJECT");
 			    call.reject();
 			});
 			$("#hangUp").click(function(){
@@ -191,7 +188,6 @@
 			    updateUI();
 			});
 			$("#mute").click(function(){
-			    console.log("MUTE CLICKED");
 			    if(call.getInfo().microphoneMuted){
 			        call.unmute();
 			    }else{
