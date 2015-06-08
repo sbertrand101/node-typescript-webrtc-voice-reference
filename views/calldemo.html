@@ -164,7 +164,9 @@
 
 			$("#connectCall").click(function () {
 			    var dest = $("#toField").val();
-			    call = phone.call(dest);
+			    call = phone.call(dest, {
+			    	identity: "{{phoneNumber}}"
+			    });
 			    call.setRemoteAudioElement(document.getElementById("remote-audio"));
 			    call.on("connected", updateUI);
 			    call.on("ended", function(){
