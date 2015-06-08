@@ -258,13 +258,16 @@ server.route({
 					webrtcEnv = "-"+ config.environment;
 				}
 
+				var realm = user.endpoint.credentials.realm;
+
 				reply.view("calldemo", {
 					username: user.endpoint.name,
 					authToken: authToken.token,
 					authTokenDisplayData: JSON.stringify(authToken, null, 3),
 					userData: JSON.stringify(user, null, 3),
 					phoneNumber: user.phoneNumber,
-					webrtcEnv: webrtcEnv
+					webrtcEnv: webrtcEnv,
+					domain: realm
 				});
 			});
 	}
