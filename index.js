@@ -41,7 +41,7 @@ server.connection({
 	host: process.env.HOST || "0.0.0.0"
 });
 
-// set up templates 
+// set up templates
 server.views({
 	engines: {
 		html: NunjucksHapi
@@ -121,74 +121,111 @@ function formatUser(user) {
 
 // Catapult's event handler
 function processEvent(ev, user) {
-	switch (ev.eventType) {
-		case "incomingcall":
-			var callbackUrl = config.baseUrl + "/users/" + encodeURIComponent(user.userName) + "/callback";
-			if (user.phoneNumber === ev.to) {
-				//incoming call
-				debug("Handle incoming call: call to sip %s", user.endpoint.sipUri);
-				return Call.create({
-					from: user.phoneNumber,
-					to: user.endpoint.sipUri,
-					callbackUrl: callbackUrl,
-					tag: ev.callId
-				});
-			}
-			if (user.endpoint.sipUri.indexOf(ev.from.trim()) >= 0) {
-				//outgoing call
-				debug("Handle outgoing call: call to  %s", ev.to);
-				return Call.create({
-					from: user.phoneNumber,
-					to: ev.to,
-					callbackUrl: callbackUrl,
-					tag: ev.callId
-				});
-			}
-			break;
-		case "answer":
-			if (!ev.tag) {
-				return Promise.resolve();
-			}
-			return Call.get(ev.tag)
-				.then(function(call) {
-					if (call.bridgeId) {
-						return Promise.reject();
-					}
-					return (call.state === "active") ? Promise.resolve() : call.answerOnIncoming();
-				})
-				.then(function() {
-					//create a bridge for both calls
-					return Bridge.create({
-						callIds: [ev.callId, ev.tag],
-						bridgeAudio: true
-					});
-				})
-				.then(function(bridge) {
-					bridges[ev.callId] = bridge.id;
-					bridges[ev.tag] = bridge.id;
-				});
-			break;
-		case "hangup":
-			var bridgeId = bridges[ev.callId];
-			if (!bridgeId) {
-				return Promise.resolve();
-			}
-			return Bridge.get(bridgeId)
-				.then(function(bridge) {
-					return bridge.getCalls();
-				})
-				.then(function(calls) {
-					return Promise.all(calls.map(function(c) {
-						delete bridges[c.id];
-						if (c.state === "active") {
-							debug("Hangup another call");
-							return c.hangUp();
-						}
-					}));
-				});
-			break;
+	// Determine the type of event and handle accordingly
+	if (ev.eventType === "incomingcall") {
+		return handleIncomingCall(ev, user);
+	}
+	else if (ev.eventType === "answer") {
+		return handleAnswer(ev, user);
+	}
+	else if (ev.eventType === "hangup") {
+		return handleHangup(ev, user);
+	}
+	else {
+		return Promise.reject();
 	}
 }
+
+
+function handleIncomingCall(ev, user) {
+	var callbackUrl = config.baseUrl + "/users/" + encodeURIComponent(user.userName) + "/callback";
+
+	if (user.phoneNumber === ev.to) {
+		// This is an incoming call to the user's endpoint
+
+		// If it has a tag, it's the answer for the outbound call leg to the user's endpoint
+		if (ev.tag) {
+			return Promise.resolve(); // <-- Do we need to answer the call here?
+		}
+		else {
+			// Get the actual call object
+			return Call.get(ev.callId).then(function(call) {
+				// Answer the call so that we can put it in the bridge
+				return call.answerOnIncoming().then(function() {
+					// Play ringing until the user picks up
+					call.playAudio({
+						fileUrl: config.baseUrl + "/static/sounds/ring.mp3",
+						loopEnabled: true
+					});
+				});
+			}).then(function() {
+				// Create a bridge with the inbound call
+				return Bridge.create({
+					callIds: [ev.callId],
+					bridgeAudio: true
+				});
+			})
+			.then(function(bridge) {
+				bridges[ev.callId] = bridge.id;
+				// Create the outbound leg of the call to the user's endpoint
+				// Include the bridgeId in this call
+				return Call.create({
+					from: ev.from,
+					to: user.endpoint.sipUri,
+					bridgeId: bridge.id,
+					callbackUrl: callbackUrl,
+					tag: ev.callId
+				})
+				.then(function(call) {
+					bridges[call.id] = bridge.id
+				});
+			});
+		}
+	}
+	else if (user.endpoint.sipUri.indexOf(ev.from.trim()) >= 0) {
+		// This is an outgoing call, from the user's endpoint
+		return Call.create({
+			from: user.phoneNumber,
+			to: ev.to,
+			callbackUrl: callbackUrl,
+			tag: ev.callId
+		});
+	}
+}
+
+function handleAnswer(ev, user) {
+	// We actually don't need to do anything here because the bridge was
+	// already set up when we created the call
+	return Promise.resolve();
+}
+
+function handleHangup(ev, user) {
+	// Lookup the bridge by the callId
+	var bridgeId = bridges[ev.callId];
+	if (!bridgeId) {
+		// If this call was not on a bridge no action is needed
+		return Promise.resolve();
+	}
+
+	// Otherwise, we need to get the bridge and hangup the other end
+	return Bridge.get(bridgeId)
+		.then(function(bridge) {
+			// Get the other call(s) on the bridge
+			return bridge.getCalls();
+		})
+		.then(function(calls) {
+			return Promise.all(calls.map(function(c) {
+				// Remove the callId from the bridges object
+				delete bridges[c.id];
+				if (c.state === "active") {
+					// If the call is still active hang it up
+					debug("Hangup another call");
+					return c.hangUp();
+				}
+			}));
+		});
+}
+
 
 // Logs
 
