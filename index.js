@@ -140,55 +140,53 @@ function processEvent(ev, user) {
 function handleIncomingCall(ev, user) {
 	var callbackUrl = config.baseUrl + "/users/" + encodeURIComponent(user.userName) + "/callback";
 
+	var toNumber = ev.to;
+	var fromNumber = ev.from;
+
 	if (user.phoneNumber === ev.to) {
 		// This is an incoming call to the user's endpoint
+		toNumber = user.endpoint.sipUri;
+	}
+	else {
+		fromNumber = user.phoneNumber
+	}
 
-		// If it has a tag, it's the answer for the outbound call leg to the user's endpoint
-		if (ev.tag) {
-			return Promise.resolve(); // <-- Do we need to answer the call here?
-		}
-		else {
-			// Get the actual call object
-			return Call.get(ev.callId).then(function(call) {
-				// Answer the call so that we can put it in the bridge
-				return call.answerOnIncoming().then(function() {
-					// Play ringing until the user picks up
-					call.playAudio({
-						fileUrl: config.baseUrl + "/static/sounds/ring.mp3",
-						loopEnabled: true
-					});
-				});
-			}).then(function() {
-				// Create a bridge with the inbound call
-				return Bridge.create({
-					callIds: [ev.callId],
-					bridgeAudio: true
-				});
-			})
-			.then(function(bridge) {
-				bridges[ev.callId] = bridge.id;
-				// Create the outbound leg of the call to the user's endpoint
-				// Include the bridgeId in this call
-				return Call.create({
-					from: ev.from,
-					to: user.endpoint.sipUri,
-					bridgeId: bridge.id,
-					callbackUrl: callbackUrl,
-					tag: ev.callId
-				})
-				.then(function(call) {
-					bridges[call.id] = bridge.id
+	// If it has a tag, it's the answer for the outbound call leg to the user's endpoint
+	if (ev.tag) {
+		return Promise.resolve(); // <-- Do we need to answer the call here?
+	}
+	else {
+		// Get the actual call object
+		return Call.get(ev.callId).then(function(call) {
+			// Answer the call so that we can put it in the bridge
+			return call.answerOnIncoming().then(function() {
+				// Play ringing until the user picks up
+				call.playAudio({
+					fileUrl: config.baseUrl + "/static/sounds/ring.mp3",
+					loopEnabled: true
 				});
 			});
-		}
-	}
-	else if (user.endpoint.sipUri.indexOf(ev.from.trim()) >= 0) {
-		// This is an outgoing call, from the user's endpoint
-		return Call.create({
-			from: user.phoneNumber,
-			to: ev.to,
-			callbackUrl: callbackUrl,
-			tag: ev.callId
+		}).then(function() {
+			// Create a bridge with the inbound call
+			return Bridge.create({
+				callIds: [ev.callId],
+				bridgeAudio: true
+			});
+		})
+		.then(function(bridge) {
+			bridges[ev.callId] = bridge.id;
+			// Create the outbound leg of the call to the user's endpoint
+			// Include the bridgeId in this call
+			return Call.create({
+				from: fromNumber,
+				to: toNumber,
+				bridgeId: bridge.id,
+				callbackUrl: callbackUrl,
+				tag: ev.callId
+			})
+			.then(function(call) {
+				bridges[call.id] = bridge.id
+			});
 		});
 	}
 }
