@@ -410,10 +410,12 @@ server.route({
 		if (user) {
 			var ev = req.payload;
 			debug(ev);
-			processEvent(ev, user).then(function() {
+			return processEvent(ev, user).then(function() {
 				reply("");
 			}, function(err) {
-				console.error("Callback error:" + err.message);
+				if(err){
+          console.error("Callback error:" + err.message);
+        }
 				reply("");
 			});
 		}
