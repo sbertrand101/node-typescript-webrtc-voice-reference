@@ -16,6 +16,7 @@ Before running, fill config file (config.json) with right values:
 `catapultUserId`, `catapultApiToken`, `catapultApiSecret` - auth data for Catapult API (to search and reserve a phone number, etc)
 
 `baseUrl` - base url of this site for external access (like http://<your-site>.heroku.com),
+`databaseUrl` - url to mongodb database (keep it empty to use local mongodb server)
 
 After that run `npm install`  to install dependencies.
 
@@ -37,6 +38,8 @@ git commit -a -m "Deployment"
 ```
 
 Run `heroku create` to create new app on Heroku and link it with current project.
+
+Run `heroku addons:create mongolab` to add mongodb support. 
 
 Change option `baseUrl` in `config.json` by assigned by Heroku value (something like http://XXXX-XXXXXX-XXXX.heroku.com). Commit your changes by `git commit -a`. 
 

@@ -6,10 +6,10 @@ var catapult = require("node-bandwidth");
 var config = require("./config.json");
 var thenifyAll = require("thenify-all");
 var randomstring = require("randomstring");
-var fs = require("mz/fs");
 var debug = require("debug")("voice");
 var NunjucksHapi = require('nunjucks-hapi');
 var Promise = require("bluebird");
+var mongoose = require("mongoose");
 
 var server = new Hapi.Server(); //server instance
 
@@ -21,6 +21,10 @@ if(config.environment && config.environment != "prod"){
 catapult.Client.globalOptions.userId = config.catapultUserId;
 catapult.Client.globalOptions.apiToken = config.catapultApiToken;
 catapult.Client.globalOptions.apiSecret = config.catapultApiSecret;
+
+mongoose.connect(process.env.MONGOLAB_URI || config.databaseUrl || "mongodb://localhost/voice-reference-app");
+mongoose.connection.on("error", console.error.bind(console, "connection error:"));
+
 //wrap Catapult API functions. Make them thenable (i.e. they will use Promises intead of callbacks)
 var Application = thenifyAll(catapult.Application);
 var AvailableNumber = thenifyAll(catapult.AvailableNumber);
@@ -36,6 +40,12 @@ catapult.Bridge.prototype = thenifyAll(catapult.Bridge.prototype);
 thenifyAll.withCallback(server, server, ["start", "register"]);
 
 
+// db model User
+var User = mongoose.model("User", new mongoose.Schema({
+	userName: {type: String, index: true},
+	endpoint: {}
+}, {strict: false}));
+
 server.connection({
 	port: process.env.PORT || 3000,
 	host: process.env.HOST || "0.0.0.0"
@@ -49,19 +59,12 @@ server.views({
 	path: path.join(__dirname, 'views')
 })
 
-// file to store users data
-var usersPath = path.join(__dirname, "users.json");
 
-// users data
-var users = {};
 var domain = null;
 
 // active bridges
 var bridges = {};
 
-function saveUsers() {
-	return fs.writeFile(usersPath, JSON.stringify(users));
-}
 
 function createUser(user) {
 	return Application.create({
@@ -103,17 +106,15 @@ function createUser(user) {
 			//remove 'specific' data to be saved
 			delete user.application.client;
 			delete user.endpoint.client;
-			// save a created user
-			users[user.userName] = user;
-			saveUsers();
-			return user;
+			// save a created user to db
+			return new User(user).save();
 		});
 }
 
 function formatUser(user) {
 	var k, u = {};
 	for (k in user) {
-		if (k === "password" || k === "application") continue;
+		if (k === "password" || k === "application" || k[0] === "_") continue;
 		u[k] = user[k];
 	}
 	return u;
@@ -250,12 +251,14 @@ server.route({
 });
 
 function getOrCreateUser(user) {
-	if (users[user.userName]) {
-		// user already exists, use the existing endpoint
-		return Promise.resolve(users[user.userName]);
-	} else {
+	return User.findOne({userName: user.userName})
+	.then(function(dbUser){
+		if(dbUser) {
+			// user already exists, use the existing endpoint
+			return dbUser;
+		}
 		return createUser(user);
-	}
+	});
 }
 
 //GET /
@@ -299,7 +302,7 @@ server.route({
 					username: user.endpoint.name,
 					authToken: authToken.token,
 					authTokenDisplayData: JSON.stringify(authToken, null, 3),
-					userData: JSON.stringify(user, null, 3),
+					userData: JSON.stringify(user.toJSON({versionKey: false}), null, 3),
 					phoneNumber: user.phoneNumber,
 					webrtcEnv: webrtcEnv,
 					domain: realm
@@ -341,11 +344,13 @@ server.route({
 	path: "/users/{userName}",
 	method: "GET",
 	handler: function(req, reply) {
-		var user = users[req.params.userName];
-		if (user) {
-			return reply(formatUser(user));
-		}
-		reply(boom.notFound());
+		reply(User.findOne({userName: req.params.userName})
+		.then(function(dbUser){
+			if(dbUser){
+				return formatUser(dbUser);
+			}
+			return boom.notFound();
+		}));
 	}
 });
 
@@ -356,18 +361,18 @@ server.route({
 	method: "PUT",
 	handler: function(req, reply) {
 		var k, body = req.payload || {};
-		var user = users[req.params.userName];
-		if (user) {
-			for (k in body) {
-				user[k] = body[k];
+		reply(User.findOne({userName: req.params.userName})
+		.then(function(user){
+			if (user) {
+				for (k in body) {
+					user[k] = body[k];
+				}
+				return user.save().then(function() {
+					return "";
+				});
 			}
-			return saveUsers().then(function() {
-				reply("");
-			}, function(err) {
-				reply(err);
-			});
-		}
-		reply(boom.notFound());
+			return boom.notFound();
+		}));
 	}
 });
 
@@ -377,11 +382,11 @@ server.route({
 	path: "/users/{userName}",
 	method: "DELETE",
 	handler: function(req, reply) {
-		var user = users[req.params.userName];
-		if (user) {
-			var phoneNumber = user.phoneNumber;
-			delete users[req.params.userName];
-			return saveUsers()
+		reply(User.findOne({userName: req.params.userName})
+		.then(function(user){
+			if (user) {
+				var phoneNumber = user.phoneNumber;
+				return user.remove()
 				.then(function() {
 					return PhoneNumber.get(phoneNumber);
 				})
@@ -391,12 +396,11 @@ server.route({
 					}
 				})
 				.then(function() {
-					reply("");
-				}, function(err) {
-					reply(err);
+					return "";
 				});
-		}
-		reply(boom.notFound());
+			}
+			return boom.notFound();
+		}));
 	}
 });
 
@@ -406,20 +410,22 @@ server.route({
 	path: "/users/{userName}/callback",
 	method: "POST",
 	handler: function(req, reply) {
-		var user = users[req.params.userName];
-		if (user) {
-			var ev = req.payload;
-			debug(ev);
-			return processEvent(ev, user).then(function() {
-				reply("");
-			}, function(err) {
-				if(err){
-          console.error("Callback error:" + err.message);
-        }
-				reply("");
-			});
-		}
-		reply(boom.notFound());
+		reply(User.findOne({userName: req.params.userName})
+		.then(function(user){
+			if (user) {
+				var ev = req.payload;
+				debug(ev);
+				return processEvent(ev, user).then(function() {
+					return "";
+				}, function(err) {
+					if(err){
+					  	console.error("Callback error:" + err.message);
+					}
+					return "";
+				});
+			}
+			return boom.notFound();
+		}));
 	}
 });
 
@@ -434,20 +440,7 @@ server.route({
 	}
 });
 
-fs.exists(usersPath)
-	.then(function(exists) {
-		if (exists) {
-			debug("Read users data from json file");
-			return fs.readFile(usersPath);
-		}
-		return "{}";
-	})
-	.then(function(json) {
-		debug("Parse users json data");
-		users = JSON.parse(json);
-		debug("Loaded %d users", Object.keys(users).length);
-		return Domain.list();
-	})
+Domain.list()
 	.then(function(domains) {
 		var dm = domains.filter(function(d) {
 			return d.name === config.domain;

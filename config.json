@@ -1,7 +1,8 @@
 {
- "domain": "",
- "baseUrl": "",
- "catapultUserId": "",
- "catapultApiToken": "",
- "catapultApiSecret": ""
+ "domain": "tsttst",
+ "baseUrl": "http://localhost",
+ "catapultUserId": "u-rzmdaw5mxl4jrme56jyhe5i",
+ "catapultApiToken": "t-cze4jub4qdco5kolcjorqii",
+ "catapultApiSecret": "7ijc2uepn5qsk236zpuauyasqen22hgmgynhhea",
+ "databaseUrl": ""
 }
