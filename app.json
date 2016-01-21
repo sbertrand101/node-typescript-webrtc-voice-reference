@@ -15,7 +15,7 @@
       "description": "Your Catapult Api Secret"
     },
     "CATAPULT_DOMAIN_NAME": {
-      "description": "Your Catapult Domain Name (it should not be exists or you should own it)"
+      "description": "Your Catapult Domain Name"
     }
   },
   "addons": ["mongolab"]
