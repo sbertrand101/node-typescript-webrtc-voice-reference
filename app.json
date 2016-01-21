@@ -1,0 +1,22 @@
+{
+  "name": "Hybrid Catapult/Iris app",
+  "description": "This application demonstrates how to implement voice calling for mobile devices, browsers (WebRTC), and any SIP client using the Bandwidth Application Platform.",
+  "repository": "https://github.com/BandwidthExamples/node-voice-reference-app.git",
+  "logo": "https://avatars2.githubusercontent.com/u/12057884?v=3&s=200",
+  "keywords": ["node", "bandwidth", "catapult"],
+  "env": {
+    "CATAPULT_USER_ID": {
+      "description": "Your Catapult User Id"
+    },
+    "CATAPULT_API_TOKEN": {
+      "description": "Your Catapult Api Token"
+    },
+    "CATAPULT_API_SECRET": {
+      "description": "Your Catapult Api Secret"
+    },
+    "CATAPULT_DOMAIN_NAME": {
+      "description": "Your Catapult Domain Name (it should not be exists or you should own it)"
+    }
+  },
+  "addons": ["mongolab"]
+}
