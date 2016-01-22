@@ -1,5 +1,5 @@
 {
-  "name": "Hybrid Catapult/Iris app",
+  "name": "Voice reference app",
   "description": "It demonstrates how to implement voice calling for mobile devices, browsers (WebRTC), and any SIP client using Catapult API.",
   "repository": "https://github.com/BandwidthExamples/node-voice-reference-app.git",
   "logo": "https://avatars2.githubusercontent.com/u/12057884?v=3&s=200",
