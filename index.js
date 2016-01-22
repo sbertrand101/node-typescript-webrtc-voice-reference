@@ -3,26 +3,26 @@ var Hapi = require("hapi");
 var boom = require("boom");
 var path = require("path");
 var catapult = require("node-bandwidth");
-var config = require("./config.json");
 var thenifyAll = require("thenify-all");
 var randomstring = require("randomstring");
 var debug = require("debug")("voice");
 var NunjucksHapi = require('nunjucks-hapi');
 var Promise = require("bluebird");
 var mongoose = require("mongoose");
+var Url = require("url");
 
 var server = new Hapi.Server(); //server instance
 
 // configure Catapult API
-if(config.environment && config.environment != "prod"){
-	catapult.Client.globalOptions.apiEndPoint = "https://api." + config.environment + ".catapult.inetwork.com";
+if( process.env.CATAPULT_ENVIRONMENT &&  process.env.CATAPULT_ENVIRONMENT !== "prod"){
+	catapult.Client.globalOptions.apiEndPoint = "https://api." + process.env.CATAPULT_ENVIRONMENT + ".catapult.inetwork.com";
 }
 
-catapult.Client.globalOptions.userId = config.catapultUserId;
-catapult.Client.globalOptions.apiToken = config.catapultApiToken;
-catapult.Client.globalOptions.apiSecret = config.catapultApiSecret;
+catapult.Client.globalOptions.apiToken = process.env.CATAPULT_API_TOKEN;
+catapult.Client.globalOptions.apiSecret = process.env.CATAPULT_API_SECRET;
+catapult.Client.globalOptions.userId = process.env.CATAPULT_USER_ID;
 
-mongoose.connect(process.env.MONGOLAB_URI || config.databaseUrl || "mongodb://localhost/voice-reference-app");
+mongoose.connect(process.env.MONGOLAB_URI || "mongodb://localhost/voice-reference-app");
 mongoose.connection.on("error", console.error.bind(console, "connection error:"));
 
 //wrap Catapult API functions. Make them thenable (i.e. they will use Promises intead of callbacks)
@@ -66,10 +66,10 @@ var domain = null;
 var bridges = {};
 
 
-function createUser(user) {
+function createUser(user, baseUrl) {
 	return Application.create({
 			name: user.userName,
-			incomingCallUrl: config.baseUrl + "/users/" + encodeURIComponent(user.userName) + "/callback",
+			incomingCallUrl: baseUrl + "/users/" + encodeURIComponent(user.userName) + "/callback",
 			autoAnswer: false
 		})
 		.then(function(application) {
@@ -121,10 +121,10 @@ function formatUser(user) {
 }
 
 // Catapult's event handler
-function processEvent(ev, user) {
+function processEvent(req, ev, user) {
 	// Determine the type of event and handle accordingly
 	if (ev.eventType === "incomingcall") {
-		return handleIncomingCall(ev, user);
+		return handleIncomingCall(ev, user, getBaseUrl(req));
 	}
 	else if (ev.eventType === "answer") {
 		return handleAnswer(ev, user);
@@ -138,8 +138,8 @@ function processEvent(ev, user) {
 }
 
 
-function handleIncomingCall(ev, user) {
-	var callbackUrl = config.baseUrl + "/users/" + encodeURIComponent(user.userName) + "/callback";
+function handleIncomingCall(ev, user, baseUrl) {
+	var callbackUrl = baseUrl + "/users/" + encodeURIComponent(user.userName) + "/callback";
 
 	var toNumber = ev.to;
 	var fromNumber = ev.from;
@@ -163,7 +163,7 @@ function handleIncomingCall(ev, user) {
 			return call.answerOnIncoming().then(function() {
 				// Play ringing until the user picks up
 				call.playAudio({
-					fileUrl: config.baseUrl + "/static/sounds/ring.mp3",
+					fileUrl: baseUrl + "/static/sounds/ring.mp3",
 					loopEnabled: true
 				});
 			});
@@ -226,6 +226,10 @@ function handleHangup(ev, user) {
 }
 
 
+function getBaseUrl(req){
+        return req.connection.info.protocol + '://' + req.info.host;	
+}
+
 // Logs
 
 server.ext("onPreHandler", function(req, reply) {
@@ -250,14 +254,14 @@ server.route({
 	}
 });
 
-function getOrCreateUser(user) {
+function getOrCreateUser(user, baseUrl) {
 	return User.findOne({userName: user.userName})
 	.then(function(dbUser){
 		if(dbUser) {
 			// user already exists, use the existing endpoint
 			return dbUser;
 		}
-		return createUser(user);
+		return createUser(user, baseUrl);
 	});
 }
 
@@ -271,7 +275,7 @@ server.route({
 			userName: req.payload.userName,
 			password: (Math.random() + 1).toString(36).substring(7)
 		};
-		getOrCreateUser(user)
+		getOrCreateUser(user, getBaseUrl(req))
 			.then(function(endPointuser) {
 				console.log("USER:", endPointuser);
 				user = endPointuser;
@@ -292,8 +296,8 @@ server.route({
 				console.log("authToken:", authToken.token);
 
 				var webrtcEnv = "";
-				if(config.environment && config.environment != "prod"){
-					webrtcEnv = "-"+ config.environment;
+				if( process.env.CATAPULT_ENVIRONMENT &&  process.env.CATAPULT_ENVIRONMENT !== "prod"){
+					webrtcEnv = "-" + process.env.CATAPULT_ENVIRONMENT;
 				}
 
 				var realm = user.endpoint.credentials.realm;
@@ -318,10 +322,11 @@ server.route({
 	method: "POST",
 	handler: function(req, reply) {
 		var user = req.payload;
+		var baseUrl = getBaseUrl(req);
 		//create an application for user
-		createUser(user)
+		createUser(user, baseUrl)
 			.then(function() {
-				reply(formatUser(user)).created(config.baseUrl + "/users/" + encodeURIComponent(user.userName));
+				reply(formatUser(user)).created(baseUrl + "/users/" + encodeURIComponent(user.userName));
 			})
 			.catch(function(err) {
 				reply(err);
@@ -415,7 +420,7 @@ server.route({
 			if (user) {
 				var ev = req.payload;
 				debug(ev);
-				return processEvent(ev, user).then(function() {
+				return processEvent(req, ev, user).then(function() {
 					return "";
 				}, function(err) {
 					if(err){
@@ -443,15 +448,15 @@ server.route({
 Domain.list()
 	.then(function(domains) {
 		var dm = domains.filter(function(d) {
-			return d.name === config.domain;
+			return d.name === process.env.CATAPULT_DOMAIN_NAME;
 		})[0];
 		if (dm) {
 			debug("Using existing domain %s", dm.name);
 			return dm;
 		}
-		debug("Creating a domain %s", config.domain);
+		debug("Creating a domain %s", process.env.CATAPULT_DOMAIN_NAME);
 		return Domain.create({
-			name: config.domain
+			name: process.env.CATAPULT_DOMAIN_NAME
 		});
 	})
 	.then(function(d) {

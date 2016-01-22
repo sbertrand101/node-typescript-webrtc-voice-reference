@@ -6,7 +6,10 @@
   "scripts": {
     "start": "node index.js"
   },
-  "author": "Andrey Belchikov",
+  "engines": {
+    "node":  "~4.2"
+  },
+  "author": "avbel",
   "license": "MIT",
   "dependencies": {
     "bluebird": "^2.9.26",
