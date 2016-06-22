@@ -1,0 +1,1 @@
+{"version":3,"file":"catapult.js","sourceRoot":"","sources":["catapult.ts"],"names":[],"mappings":";;;;;;;;;AAEa,0BAAkB,GAAG,CAAO,GAAa,EAAE,IAAc;IACrE,MAAM,IAAI,EAAE,CAAC;AACd,CAAC,CAAA,CAAC","sourcesContent":["import {IContext} from './routes';\r\n\r\nexport const catapultMiddleware = async (ctx: IContext, next: Function) => {\r\n\tawait next();\r\n};\r\n"]}
