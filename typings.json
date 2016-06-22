@@ -1,0 +1,12 @@
+{
+	"name": "node-voice-reference-app",
+	"dependencies": {
+		"mongoose": "registry:npm/mongoose#4.3.5+20160610145311"
+	},
+	"globalDependencies": {
+		"bcryptjs": "registry:dt/bcryptjs#2.3.0+20151217030501",
+		"koa": "registry:dt/koa#2.0.0+20160619030120",
+		"koa-router": "registry:dt/koa-router#7.0.0+20160314083221",
+		"node": "registry:dt/node#6.0.0+20160621231320"
+	}
+}

@@ -1,0 +1,1 @@
+{"version":3,"file":"catapult.js","sourceRoot":"","sources":["../../lib/catapult.ts"],"names":[],"mappings":";AAAa,0BAAkB,GAAG,QAAO,CAAC,CAAA","sourcesContent":["export const catapultMiddleware = () => {}\r\n"]}
