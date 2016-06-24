@@ -1,8 +1,12 @@
 import * as Koa from 'koa';
 import {Mongoose} from 'mongoose';
+import * as debugFactory from 'debug';
 import {catapultMiddleware} from './catapult';
-import getModels from './models';
+import getModels, {IModels} from './models';
 import getRouter from './routes';
+import staticFilesOptions from './staticFilesOptions';
+
+const debug = debugFactory('index');
 
 function getDatabaseUrl(): string {
 	const env = process.env;
@@ -30,13 +34,18 @@ mongoose.connect(getDatabaseUrl(), (err: any) => {
 	}
 });
 
-const models = getModels(mongoose);
+export const models = getModels(mongoose);
 const router = getRouter(app, models);
 
 app
-	.use(require('koa-static')('public'))
+	.use(require('koa-static')(staticFilesOptions.root, staticFilesOptions))
 	.use(catapultMiddleware)
 	.use(router.allowedMethods())
 	.use(router.routes());
 
-app.listen(process.env.PORT || 3000);
+if (app.env !== 'test') {
+	app.listen(process.env.PORT || 3000, () => debug('Server started'));
+}
+
+export default app;
+

@@ -1,12 +1,15 @@
 {
 	"name": "node-voice-reference-app",
 	"dependencies": {
+		"debug": "registry:npm/debug#2.0.0+20160511151334",
 		"mongoose": "registry:npm/mongoose#4.3.5+20160610145311"
 	},
 	"globalDependencies": {
 		"bcryptjs": "registry:dt/bcryptjs#2.3.0+20151217030501",
 		"koa": "registry:dt/koa#2.0.0+20160619030120",
 		"koa-router": "registry:dt/koa-router#7.0.0+20160314083221",
-		"node": "registry:dt/node#6.0.0+20160621231320"
+		"node": "registry:dt/node#6.0.0+20160621231320",
+		"superagent": "registry:dt/superagent#1.4.0+20160317120654",
+		"supertest": "registry:dt/supertest#1.1.0+20160317120654"
 	}
 }

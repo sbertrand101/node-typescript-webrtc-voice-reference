@@ -35,3 +35,7 @@ jsconfig.json
 production
 
 docker-compose.yml
+
+*.js
+*.map
+*.d.ts
