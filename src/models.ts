@@ -15,9 +15,28 @@ export interface IUser extends Document {
 	comparePassword(password: string): Promise<boolean>;
 }
 
+export interface IActiveCall extends Document {
+	createdAt: Date;
+	callId: string;
+	bridgeId: string;
+	from: string;
+	to: string;
+	user: IUser;
+}
+
+export interface IVoiceMailMessage extends Document {
+	user: IUser;
+	startTime: Date;
+	endTime:   Date;
+	mediaURL:  string;
+	from:      string;
+}
+
 
 export interface IModels {
 	user: Model<IUser>;
+	activeCall: Model<IActiveCall>;
+	voiceMailMessage: Model<IVoiceMailMessage>;
 }
 
 const userSchema = new Schema({
@@ -54,9 +73,29 @@ userSchema.method('comparePassword', function (password: string): Promise<boolea
 	});
 });
 
+const activeCallSchema = new Schema({
+	createdAt: {type: Date, index: true, expires: 2 * 3600},
+	callId: {type: String, index: true},
+	bridgeId: {type: String, index: true},
+	from: String,
+	to: String,
+	user:  {type: Schema.Types.ObjectId, ref: 'user'}
+});
+
+
+const voiceMailMessageSchema = new Schema({
+	startTime: {type: Date, index: true},
+	endTime:   Date,
+	mediaURL:  String,
+	from:      String,
+	user:  {type: Schema.Types.ObjectId, ref: 'user'}
+});
+
 
 export default function getModels(mongoose: Mongoose): IModels {
 	return {
-		user: mongoose.model('user', userSchema) as Model<IUser>
+		user: mongoose.model('user', userSchema) as Model<IUser>,
+		activeCall: mongoose.model('activeCall', activeCallSchema) as Model<IActiveCall>,
+		voiceMailMessage: mongoose.model('voiceMailMessage', voiceMailMessageSchema) as Model<IVoiceMailMessage>
 	};
 }
