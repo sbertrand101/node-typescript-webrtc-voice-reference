@@ -2,7 +2,8 @@
 	"name": "node-voice-reference-app",
 	"dependencies": {
 		"debug": "registry:npm/debug#2.0.0+20160511151334",
-		"mongoose": "registry:npm/mongoose#4.3.5+20160610145311"
+		"mongoose": "registry:npm/mongoose#4.3.5+20160610145311",
+		"sinon": "registry:npm/sinon#1.16.0+20160427193336"
 	},
 	"globalDependencies": {
 		"bcryptjs": "registry:dt/bcryptjs#2.3.0+20151217030501",

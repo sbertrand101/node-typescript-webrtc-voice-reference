@@ -11,7 +11,7 @@ export interface IUser extends Document {
 	sipUri: string;
 	sipPassword: string;
 	greetingUrl: string;
-	setPassword(password: string): Promise<void>;
+	setPassword(password: string): Promise<string>;
 	comparePassword(password: string): Promise<boolean>;
 }
 
@@ -31,8 +31,8 @@ const userSchema = new Schema({
 	greetingUrl: { type: String },
 });
 
-userSchema.method('setPassword', (password: string): Promise<void> => {
-	return new Promise<void>((resolve, reject) => {
+userSchema.method('setPassword', function (password: string): Promise<string> {
+	return new Promise<string>((resolve, reject) => {
 		hash(password + pepper, 10, (err: any, hash: any) => {
 			if (err) {
 				return reject(err);
@@ -43,7 +43,7 @@ userSchema.method('setPassword', (password: string): Promise<void> => {
 	});
 });
 
-userSchema.method('comparePassword', (password: string): Promise<boolean> => {
+userSchema.method('comparePassword', function (password: string): Promise<boolean>  {
 	return new Promise<boolean>((resolve, reject) => {
 		compare(password + pepper, this.passwordHash, (err: any, result: boolean) => {
 			if (err) {
