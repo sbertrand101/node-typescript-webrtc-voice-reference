@@ -4,9 +4,12 @@ import * as jwt from 'jsonwebtoken';
 import * as moment from 'moment';
 import {Query} from 'mongoose';
 import * as debugFactory from 'debug';
+import * as PubSub from 'pubsub';
 
-import {IUser, IActiveCall, IModels} from './models';
-import {ICatapultApi} from './catapult';
+import {IUser, IActiveCall, IVoiceMailMessage, IModels} from './models';
+import {ICatapultApi, buildAbsoluteUrl, catapultMiddleware} from './catapult';
+
+require('promisify-patch').patch();
 
 const debug = debugFactory('routes');
 
@@ -26,6 +29,7 @@ export interface IContext extends Router.IRouterContext {
 export default function getRouter(app: Koa, models: IModels): Router {
 	const router = new Router();
 	router.use(require('koa-convert')(require('koa-body')()));
+	router.use(catapultMiddleware);
 	router.use(koaJwt);
 	router.use(async (ctx: IContext, next: Function) => {
 		const userId = ctx.state.user;
@@ -46,7 +50,7 @@ export default function getRouter(app: Koa, models: IModels): Router {
 			return ctx.throw(400, 'Missing user');
 		}
 		if (await user.comparePassword(body.password)) {
-			const token = jwt.sign(user.id, jwtToken, { expiresIn: '7d' });
+			const token = await (<any>(jwt.sign)).promise(user.id, jwtToken, { expiresIn: '7d' });
 			ctx.body = { token, expire: moment().add(7, 'd').toISOString() };
 		}
 
@@ -186,14 +190,7 @@ export default function getRouter(app: Koa, models: IModels): Router {
 					await ctx.api.stopPlayAudioToCall(callId);
 					await models.activeCall.update({ callId: callId }, { bridgeId: '' }); // to suppress hang up this call too
 					debug('Moving to voice mail');
-					// Play greeting
-					if (user.greetingUrl === '') {
-						debug('Play default greeting');
-						await api.speakSentenceToCall(callId, 'Hello. Please leave a message after beep.', 'Greeting');
-					} else {
-						debug(`Play user's greeting`);
-						ctx.api.playAudioToCall(callId, user.greetingUrl, false, 'Greeting');
-					}
+					await playGreeting(ctx, callId, user);
 					break;
 				}
 			case 'recording':
@@ -212,9 +209,11 @@ export default function getRouter(app: Koa, models: IModels): Router {
 								userId: user.id,
 								from: await getCallerId(models, call.from),
 							});
+							await message.save();
 
 							// send notification about new voice mail message
-							// TODO rasie SSE event
+							debug(`Publish SSE notification (for user ${user.userName})`);
+							await PubSub.publish(user.id.toString(), message.toJSON());
 						}
 					}
 				}
@@ -234,6 +233,150 @@ export default function getRouter(app: Koa, models: IModels): Router {
 				break;
 		}
 		ctx.body = '';
+	});
+
+	router.post('/recordGreeting', async (ctx: IContext) => {
+		const callId = await ctx.api.createCall({
+			from: ctx.user.phoneNumber,
+			to: ctx.user.sipUri,
+			callbackUrl: buildAbsoluteUrl(ctx, '/recordCallback')
+		});
+		await models.activeCall.create({
+			user: ctx.user.id,
+			callId: callId,
+			from: ctx.user.phoneNumber,
+			to: ctx.user.sipUri
+		});
+		ctx.body = '';
+	});
+
+	router.post('/recordCallback', async (ctx: IContext) => {
+		const form = (<any>(ctx.request)).body;
+		debug('Catapult Event for greeting record: ${ctx.request.url}');
+		const user = await getUserForCall(form.callId, models);
+		const mainMenu = async () => {
+			await ctx.api.createGather({
+				maxDigits: 1,
+				interDigitTimeout: 30,
+				prompt: {
+					sentence: 'Press 1 to listen to your current greeting. Press 2 to record new greeting. Press 3 to set greeting to default.'
+				},
+				tag: 'mainMenu'
+			});
+		}
+		ctx.body = '';
+		switch (form.eventType) {
+			case 'answer':
+				debug('Play voice menu');
+				return await mainMenu();
+			case 'gather':
+				if (form.state === 'completed') {
+					switch (form.tag) {
+						case 'mainMenu': {
+							switch (form.digits) {
+								case '1':
+									debug('Play greeting');
+									return await playGreeting(ctx, form.callId, user);
+								case '2':
+									debug('Record greeting');
+									return await ctx.api.speakSentenceToCall(form.callId, 'Say your greeting after beep. Press 0 to complete recording.', 'PlayBeep')
+								case '3':
+									debug('Reset greeting');
+									await models.user.update({ _id: user.id }, { greetingUrl: '' });
+									return await ctx.api.speakSentenceToCall(form.callId, 'Your greeting has been set to default.', 'PlayMenu')
+							}
+						}
+						case 'GreetingRecording': {
+							if (form.digits === '0') {
+								debug('Stop greeting recording');
+								await ctx.api.updateCall(form.callId, { recordingEnabled: false });
+							}
+						}
+					}
+				}
+				break;
+			case `recording`:
+				if (form.state === 'complete') {
+					const recording = await ctx.api.getRecording(form.recordingId);
+					ctx.user.greetingUrl = recording.media;
+					await ctx.user.save();
+					const call = await ctx.api.getCall(form.callId)
+					if (call.state === 'active') {
+						return await ctx.api.speakSentenceToCall(form.callId, 'Your greeting has been saved.', 'PlayMenu');
+					}
+				}
+				break;
+			case 'speak':
+			case 'playback':
+				if (form.status === 'done') {
+					switch (form.tag) {
+						case 'PlayBeep':
+							debug('Play beep');
+							return await ctx.api.playAudioToCall(form.callId, beepURL, false, 'Beep');
+						case 'Beep':
+							// after beep srart voice message recording
+							debug('Start greeting recording')
+							await ctx.api.updateCall(form.callId, { recordingEnabled: true });
+							await ctx.api.createGather({
+								maxDigits: 1,
+								interDigitTimeout: 30,
+								tag: 'GreetingRecording'
+							});
+							break;
+						default:
+							return await mainMenu();
+					}
+				}
+				break;
+		}
+	});
+
+	router.get('/voiceMessages', async (ctx: IContext) => {
+		const list = <IVoiceMailMessage[]>(<any>(await models.voiceMailMessage.find({ user: ctx.user.id }).sort(['startTime', 'descending'])));
+		this.body = list.map(i => i.toJSON());
+	});
+
+	router.get('/voiceMessages/:id/media', async (ctx: IContext) => {
+		const voiceMessage = <IVoiceMailMessage>(<any>(await models.voiceMailMessage.findOne({ _id: ctx.params.id, user: ctx.user.id })));
+		if (!voiceMessage) {
+			return ctx.throw(404);
+		}
+		const parts = (voiceMessage.mediaUrl || '').split('/');
+		const {content, contentType} = await ctx.api.downloadMediaFile(parts[parts.length - 1])
+		ctx.headers['Content-Type'] = contentType;
+		ctx.body = content;
+	});
+
+	router.delete('/voiceMessages/:id', async (ctx: IContext) => {
+		await models.voiceMailMessage.remove({ _id: ctx.params.id, user: ctx.user.id });
+		ctx.body = '';
+	});
+
+	router.get('/voiceMessagesStream', async (ctx: IContext) => {
+		const token = ctx.request.query.token;
+		const userId = await (<any>jwt.verify).promise(token, jwtToken);
+		const user = await models.user.findById(userId);
+		if (!user) {
+			return ctx.throw(404);
+		}
+		ctx.request.socket.setTimeout(Infinity);
+		ctx.headers = {
+			'Content-Type': 'text/event-stream',
+			'Cache-Control': 'no-cache',
+			'Connection': 'keep-alive'
+		};
+		ctx.response.res.write('\n');
+		PubSub.join(userId, (message: any, uuid: any) => {
+			if (message) {
+				debug('Emit SSE event');
+				ctx.response.res.write(`id: ${uuid}\n`);
+				ctx.response.res.write(`data: ${JSON.stringify(message)}\n\n`);
+			}
+		});
+		// TODO listen to new voice messages and emit new events
+		ctx.request.req.on('close', () => {
+			PubSub.leave(userId);
+		});
 	});
 
 	return router;
@@ -257,16 +400,22 @@ async function getUserForCall(callId: string, models: IModels): Promise<IUser> {
 }
 
 async function getCallerId(models: IModels, phoneNumber: string): Promise<string> {
-	if(phoneNumber.startsWith('sip:')) {
-		const user = <IUser>(<any>(await models.user.findOne({sipUri: phoneNumber})));
-		if(user) {
+	if (phoneNumber.startsWith('sip:')) {
+		const user = <IUser>(<any>(await models.user.findOne({ sipUri: phoneNumber })));
+		if (user) {
 			return user.phoneNumber;
 		}
 	}
 	return phoneNumber;
 }
 
-function buildAbsoluteUrl(ctx: IContext, path: string): string {
-	// TODO implement
-	return '';
+async function playGreeting(ctx: IContext, callId: string, user: IUser) {
+	// Play greeting
+	if (user.greetingUrl === '') {
+		debug('Play default greeting');
+		await ctx.api.speakSentenceToCall(callId, 'Hello. Please leave a message after beep.', 'Greeting');
+	} else {
+		debug(`Play user's greeting`);
+		ctx.api.playAudioToCall(callId, user.greetingUrl, false, 'Greeting');
+	}
 }

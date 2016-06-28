@@ -1,4 +1,5 @@
 import {IContext} from './routes';
+import * as url from 'url';
 
 export interface ICatapultApi {
 	createPhoneNumber(areaCode: string): Promise<string>;
@@ -6,6 +7,7 @@ export interface ICatapultApi {
 	createSIPAuthToken(endpointId: string): Promise<ISIPAuthToken>;
 	createBridge(data: any): Promise<string>;
 	createCall(data: any): Promise<string>;
+	createGather(data: any): Promise<string>;
 	updateCall(callId: string, data: any): Promise<string>;
 	stopPlayAudioToCall(callId: string): Promise<void>;
 	playAudioToCall(callId: string, tonesURL: string, loop: boolean, tag: string): Promise<void>;
@@ -14,6 +16,7 @@ export interface ICatapultApi {
 	getCall(callId: string): Promise<ICall>;
 	getRecording(recordingId: string): Promise<IRecording>;
 	hangup(callId: string): Promise<void>;
+	downloadMediaFile(name: string): Promise<IMediaFile>;
 }
 
 export interface ISIPAccount {
@@ -31,12 +34,18 @@ export interface ICall {
 	callId: string;
 	from: string;
 	to: string;
+	state: string;
 }
 
 export interface IRecording {
 	media: string;
 	startTime: string;
 	endTime: string;
+}
+
+export interface IMediaFile {
+	content: any;
+	contentType: string;
 }
 
 class CatapultApi extends ICatapultApi {
@@ -47,3 +56,18 @@ export const catapultMiddleware = async (ctx: IContext, next: Function) => {
 	ctx.api = <ICatapultApi>new CatapultApi();
 	await next();
 };
+
+export function buildAbsoluteUrl(ctx: IContext, path: string): string {
+	let proto = ctx.request.headers['X-Forwarded-Proto'];
+	if (!proto) {
+		const u = url.parse(ctx.request.url, false);
+		proto = u.protocol;
+		if (!proto) {
+			proto = 'http';
+		}
+	}
+	if (path[0] != '/') {
+		path = `/${path}`;
+	}
+	return `${proto}://${ctx.request.host}${path}`;
+}

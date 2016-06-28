@@ -28,7 +28,7 @@ export interface IVoiceMailMessage extends Document {
 	user: IUser;
 	startTime: Date;
 	endTime:   Date;
-	mediaURL:  string;
+	mediaUrl:  string;
 	from:      string;
 }
 

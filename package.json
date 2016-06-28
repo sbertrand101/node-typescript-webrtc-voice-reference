@@ -19,7 +19,9 @@
     "koa-router": "7.0.1",
     "koa-static": "3.0.0",
     "moment": "2.13.0",
-    "mongoose": "4.5.1"
+    "mongoose": "4.5.1",
+    "promisify-patch": "1.0.10",
+    "pubsub": "3.2.1"
   },
   "devDependencies": {
     "ava": "0.15.2",
