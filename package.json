@@ -21,7 +21,7 @@
     "moment": "2.13.0",
     "mongoose": "4.5.1",
     "promisify-patch": "1.0.10",
-    "pubsub": "3.2.1"
+    "pubsub-js": "1.5.3"
   },
   "devDependencies": {
     "ava": "0.15.2",

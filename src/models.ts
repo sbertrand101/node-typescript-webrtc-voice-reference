@@ -91,11 +91,22 @@ const voiceMailMessageSchema = new Schema({
 	user:  {type: Schema.Types.ObjectId, ref: 'user'}
 });
 
+voiceMailMessageSchema.set('toJSON', {transform: (doc:any, ret:any, options:any): any => {
+	return {
+		id: ret.id.toString(),
+		from: ret.from,
+		startTime: ret.startTime,
+		endTime: ret.endTime
+	};
+}});
 
 export default function getModels(mongoose: Mongoose): IModels {
-	return {
-		user: mongoose.model('user', userSchema) as Model<IUser>,
-		activeCall: mongoose.model('activeCall', activeCallSchema) as Model<IActiveCall>,
-		voiceMailMessage: mongoose.model('voiceMailMessage', voiceMailMessageSchema) as Model<IVoiceMailMessage>
+	const defineModel = (name: string, schema: Schema): any => {
+		return (<any>(mongoose)).models[name] || mongoose.model(name, schema);
+	};
+  return {
+		user: defineModel('user', userSchema) as Model<IUser>,
+		activeCall: defineModel('activeCall', activeCallSchema) as Model<IActiveCall>,
+		voiceMailMessage: defineModel('voiceMailMessage', voiceMailMessageSchema) as Model<IVoiceMailMessage>
 	};
 }

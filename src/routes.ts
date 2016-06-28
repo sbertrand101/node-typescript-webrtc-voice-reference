@@ -4,7 +4,7 @@ import * as jwt from 'jsonwebtoken';
 import * as moment from 'moment';
 import {Query} from 'mongoose';
 import * as debugFactory from 'debug';
-import * as PubSub from 'pubsub';
+import * as PubSub from 'pubsub-js';
 
 import {IUser, IActiveCall, IVoiceMailMessage, IModels} from './models';
 import {ICatapultApi, buildAbsoluteUrl, catapultMiddleware} from './catapult';
@@ -213,7 +213,7 @@ export default function getRouter(app: Koa, models: IModels): Router {
 
 							// send notification about new voice mail message
 							debug(`Publish SSE notification (for user ${user.userName})`);
-							await PubSub.publish(user.id.toString(), message.toJSON());
+							PubSub.publish(user.id.toString(), message.toJSON());
 						}
 					}
 				}
@@ -366,16 +366,16 @@ export default function getRouter(app: Koa, models: IModels): Router {
 			'Connection': 'keep-alive'
 		};
 		ctx.response.res.write('\n');
-		PubSub.join(userId, (message: any, uuid: any) => {
-			if (message) {
+		const subToken = PubSub.subscribe(userId, (message: any, data: any) => {
+			if (data) {
 				debug('Emit SSE event');
-				ctx.response.res.write(`id: ${uuid}\n`);
-				ctx.response.res.write(`data: ${JSON.stringify(message)}\n\n`);
+				ctx.response.res.write(`id: ${data.id}\n`);
+				ctx.response.res.write(`data: ${JSON.stringify(data)}\n\n`);
 			}
 		});
 		// TODO listen to new voice messages and emit new events
 		ctx.request.req.on('close', () => {
-			PubSub.leave(userId);
+			PubSub.unsubscribe(subToken);
 		});
 	});
 
