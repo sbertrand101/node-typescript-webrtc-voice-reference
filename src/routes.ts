@@ -33,7 +33,7 @@ export default function getRouter(app: Koa, models: IModels): Router {
 	router.use(koaJwt);
 	router.use(async (ctx: IContext, next: Function) => {
 		const userId = ctx.state.user;
-		const user = <any>(await models.user.findById(userId));
+		const user = await models.user.findById(userId).exec();
 		if (user) {
 			ctx.user = <IUser>user;
 		}
@@ -45,7 +45,7 @@ export default function getRouter(app: Koa, models: IModels): Router {
 		if (!body.userName || !body.password) {
 			return ctx.throw(400, 'Missing user name and/or password');
 		}
-		const user = <IUser>(<any>(await models.user.findOne({ userName: body.userName })));
+		const user = await models.user.findOne({ userName: body.userName }).exec();
 		if (!user) {
 			return ctx.throw(400, 'Missing user');
 		}
@@ -64,7 +64,7 @@ export default function getRouter(app: Koa, models: IModels): Router {
 		if (body.password !== body.repeatPassword) {
 			return ctx.throw(400, 'Password are mismatched');
 		}
-		if (await models.user.findOne({ userName: body.userName })) {
+		if (await models.user.findOne({ userName: body.userName }).exec()) {
 			return ctx.throw(400, 'User with such name is exists already');
 		}
 		const user = new models.user({ userName: body.userName, areaCode: body.areaCode });
@@ -115,7 +115,7 @@ export default function getRouter(app: Koa, models: IModels): Router {
 					await ctx.api.stopPlayAudioToCall(callId); // stop tones
 					break;
 				}
-				const user = <IUser>(<any>(await models.user.findOne({ sipUri: from, phoneNumber: to })));
+				const user = await models.user.findOne({ sipUri: from, phoneNumber: to }).exec();
 
 				if (!user) {
 					break;
@@ -221,12 +221,12 @@ export default function getRouter(app: Koa, models: IModels): Router {
 				callId = form.callId;
 				debug(`Hangup ${callId}`);
 				// look for bridge data for call first
-				const activeCall = <IActiveCall>(<any>(await models.activeCall.findOne({ callId })));
+				const activeCall = await models.activeCall.findOne({ callId }).exec();
 				if (!activeCall || activeCall.bridgeId === '') {
 					break;
 				}
 				// then look for other calls in the bridge
-				const activeCalls = <IActiveCall[]>(<any>(await models.activeCall.find({ bridgeId: activeCall.bridgeId, $not: { callId } })));
+				const activeCalls = await models.activeCall.find({ bridgeId: activeCall.bridgeId, $not: { callId } }).exec();
 
 				debug(`Hangup other ${activeCalls.length} calls`);
 				await Promise.all(activeCalls.map((c: IActiveCall) => ctx.api.hangup(c.callId)));
@@ -332,12 +332,12 @@ export default function getRouter(app: Koa, models: IModels): Router {
 	});
 
 	router.get('/voiceMessages', async (ctx: IContext) => {
-		const list = <IVoiceMailMessage[]>(<any>(await models.voiceMailMessage.find({ user: ctx.user.id }).sort(['startTime', 'descending'])));
+		const list = await models.voiceMailMessage.find({ user: ctx.user.id }).sort(['startTime', 'descending']).exec();
 		this.body = list.map(i => i.toJSON());
 	});
 
 	router.get('/voiceMessages/:id/media', async (ctx: IContext) => {
-		const voiceMessage = <IVoiceMailMessage>(<any>(await models.voiceMailMessage.findOne({ _id: ctx.params.id, user: ctx.user.id })));
+		const voiceMessage = await models.voiceMailMessage.findOne({ _id: ctx.params.id, user: ctx.user.id }).exec();
 		if (!voiceMessage) {
 			return ctx.throw(404);
 		}
@@ -355,7 +355,7 @@ export default function getRouter(app: Koa, models: IModels): Router {
 	router.get('/voiceMessagesStream', async (ctx: IContext) => {
 		const token = ctx.request.query.token;
 		const userId = await (<any>jwt.verify).promise(token, jwtToken);
-		const user = await models.user.findById(userId);
+		const user = await models.user.findById(userId).exec();
 		if (!user) {
 			return ctx.throw(404);
 		}
@@ -392,7 +392,7 @@ function getPrimaryCallId(tag: string): string {
 
 
 async function getUserForCall(callId: string, models: IModels): Promise<IUser> {
-	const call = <any>(await models.activeCall.findOne({ callId }).populate('user'));
+	const call = await models.activeCall.findOne({ callId }).populate('user').exec();
 	if (call && call.user) {
 		return <IUser>call.user;
 	}
@@ -401,7 +401,7 @@ async function getUserForCall(callId: string, models: IModels): Promise<IUser> {
 
 async function getCallerId(models: IModels, phoneNumber: string): Promise<string> {
 	if (phoneNumber.startsWith('sip:')) {
-		const user = <IUser>(<any>(await models.user.findOne({ sipUri: phoneNumber })));
+		const user = await models.user.findOne({ sipUri: phoneNumber }).exec();
 		if (user) {
 			return user.phoneNumber;
 		}
