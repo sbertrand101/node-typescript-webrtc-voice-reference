@@ -117,16 +117,8 @@ export const catapultMiddleware = async (ctx: IContext, next: Function) => {
 };
 
 export function buildAbsoluteUrl(ctx: IContext, path: string): string {
-	let proto = ctx.request.headers['X-Forwarded-Proto'];
-	if (!proto) {
-		const u = url.parse(ctx.request.url, false);
-		proto = u.protocol;
-		if (!proto) {
-			proto = 'http';
-		}
-	}
 	if (path[0] != '/') {
 		path = `/${path}`;
 	}
-	return `${proto}://${ctx.request.host}${path}`;
+	return `${ctx.request.protocol}://${ctx.request.host}${path}`;
 }

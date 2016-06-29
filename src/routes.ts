@@ -105,7 +105,7 @@ export default function getRouter(app: Koa, models: IModels): Router {
 		} else {
 			callId = form.callId;
 		}
-		const user = await getUserForCall(callId, models);
+		let user = await getUserForCall(callId, models);
 		switch (form.eventType) {
 			case 'answer':
 				const from = form.from;
@@ -115,7 +115,7 @@ export default function getRouter(app: Koa, models: IModels): Router {
 					await ctx.api.stopPlayAudioToCall(callId); // stop tones
 					break;
 				}
-				const user = await models.user.findOne({ sipUri: from, phoneNumber: to }).exec();
+				user = await models.user.findOne({ sipUri: from, phoneNumber: to }).exec();
 
 				if (!user) {
 					break;
@@ -342,9 +342,9 @@ export default function getRouter(app: Koa, models: IModels): Router {
 			return ctx.throw(404);
 		}
 		const parts = (voiceMessage.mediaUrl || '').split('/');
-		const {content, contentType} = await ctx.api.downloadMediaFile(parts[parts.length - 1])
-		ctx.headers['Content-Type'] = contentType;
-		ctx.body = content;
+		const file = await ctx.api.downloadMediaFile(parts[parts.length - 1])
+		ctx.headers['Content-Type'] = file.contentType;
+		ctx.body = file.content;
 	});
 
 	router.delete('/voiceMessages/:id', async (ctx: IContext) => {
@@ -394,7 +394,7 @@ function getPrimaryCallId(tag: string): string {
 async function getUserForCall(callId: string, models: IModels): Promise<IUser> {
 	const call = await models.activeCall.findOne({ callId }).populate('user').exec();
 	if (call && call.user) {
-		return <IUser>call.user;
+		return call.user;
 	}
 	return null;
 }

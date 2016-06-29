@@ -1,6 +1,7 @@
 import * as Koa from 'koa';
 import {agent, SuperTest} from 'supertest';
 import app, {models} from '../src/index';
+import {IContext} from '../src/routes';
 import * as http from "http";
 export interface ISuperTest extends SuperTest {
 	login: (userName: string) => Promise<void>;
@@ -30,4 +31,11 @@ export async function runWithServer(action: (request: ISuperTest, app: Koa, serv
 	}	finally {
 		server.close();
 	}
+}
+
+export function createContext(): IContext {
+	const app = new Koa();
+	app.proxy = true;
+	const ctx = (<any>(app)).createContext({socket: {}, headers: {host: 'localhost'}}, {});
+	return ctx;
 }
