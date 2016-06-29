@@ -2,14 +2,14 @@ import * as Koa from 'koa';
 import {agent, SuperTest} from 'supertest';
 import app, {models} from '../src/index';
 import {IContext} from '../src/routes';
-import * as http from "http";
+import * as http from 'http';
 export interface ISuperTest extends SuperTest {
 	login: (userName: string) => Promise<void>;
 }
 export async function runWithServer(action: (request: ISuperTest, app: Koa, server: http.Server) => Promise<any>) {
 	const server = (<any>(app)).listen();
 	const request = <ISuperTest>agent(server);
-	request.login = async (userName:string) => {
+	request.login = async (userName) => {
 		await models.user.remove({userName});
 		const user = new models.user({
 			userName,

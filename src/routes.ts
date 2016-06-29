@@ -129,7 +129,7 @@ export default function getRouter(app: Koa, models: IModels): Router {
 					const bridgeId = await ctx.api.createBridge({
 						callIds: [callId],
 						bridgeAudio: true
-					})
+					});
 
 					// save current call data to db
 					await models.activeCall.create({
@@ -177,7 +177,7 @@ export default function getRouter(app: Koa, models: IModels): Router {
 							break;
 						case 'Beep':
 							// after beep srart voice message recording
-							debug('Starting call recording')
+							debug('Starting call recording');
 							await ctx.api.updateCall(form.callId, { recordingEnabled: true });
 							break;
 					}
@@ -263,7 +263,7 @@ export default function getRouter(app: Koa, models: IModels): Router {
 				},
 				tag: 'mainMenu'
 			});
-		}
+		};
 		ctx.body = '';
 		switch (form.eventType) {
 			case 'answer':
@@ -279,11 +279,11 @@ export default function getRouter(app: Koa, models: IModels): Router {
 									return await playGreeting(ctx, form.callId, user);
 								case '2':
 									debug('Record greeting');
-									return await ctx.api.speakSentenceToCall(form.callId, 'Say your greeting after beep. Press 0 to complete recording.', 'PlayBeep')
+									return await ctx.api.speakSentenceToCall(form.callId, 'Say your greeting after beep. Press 0 to complete recording.', 'PlayBeep');
 								case '3':
 									debug('Reset greeting');
 									await models.user.update({ _id: user.id }, { greetingUrl: '' });
-									return await ctx.api.speakSentenceToCall(form.callId, 'Your greeting has been set to default.', 'PlayMenu')
+									return await ctx.api.speakSentenceToCall(form.callId, 'Your greeting has been set to default.', 'PlayMenu');
 							}
 						}
 						case 'GreetingRecording': {
@@ -300,7 +300,7 @@ export default function getRouter(app: Koa, models: IModels): Router {
 					const recording = await ctx.api.getRecording(form.recordingId);
 					ctx.user.greetingUrl = recording.media;
 					await ctx.user.save();
-					const call = await ctx.api.getCall(form.callId)
+					const call = await ctx.api.getCall(form.callId);
 					if (call.state === 'active') {
 						return await ctx.api.speakSentenceToCall(form.callId, 'Your greeting has been saved.', 'PlayMenu');
 					}
@@ -315,7 +315,7 @@ export default function getRouter(app: Koa, models: IModels): Router {
 							return await ctx.api.playAudioToCall(form.callId, beepURL, false, 'Beep');
 						case 'Beep':
 							// after beep srart voice message recording
-							debug('Start greeting recording')
+							debug('Start greeting recording');
 							await ctx.api.updateCall(form.callId, { recordingEnabled: true });
 							await ctx.api.createGather({
 								maxDigits: 1,
@@ -342,7 +342,7 @@ export default function getRouter(app: Koa, models: IModels): Router {
 			return ctx.throw(404);
 		}
 		const parts = (voiceMessage.mediaUrl || '').split('/');
-		const file = await ctx.api.downloadMediaFile(parts[parts.length - 1])
+		const file = await ctx.api.downloadMediaFile(parts[parts.length - 1]);
 		ctx.headers['Content-Type'] = file.contentType;
 		ctx.body = file.content;
 	});

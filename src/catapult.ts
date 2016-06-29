@@ -117,7 +117,7 @@ export const catapultMiddleware = async (ctx: IContext, next: Function) => {
 };
 
 export function buildAbsoluteUrl(ctx: IContext, path: string): string {
-	if (path[0] != '/') {
+	if (path[0] !== '/') {
 		path = `/${path}`;
 	}
 	return `${ctx.request.protocol}://${ctx.request.host}${path}`;

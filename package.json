@@ -26,6 +26,7 @@
   "devDependencies": {
     "ava": "0.15.2",
     "cross-env": "1.0.8",
+    "rimraf": "2.5.2",
     "setenv": "1.0.3",
     "sinon": "1.17.4",
     "supertest": "1.2.0",
@@ -34,10 +35,11 @@
     "typings": "1.3.0"
   },
   "scripts": {
-    "lint": "tslint src/* public/* test/*",
+		"clean": "rimraf src/*.d.ts src/*.js src/*.map test/*.d.ts test/*.js test/*.map",
+    "lint": "npm run clean && tslint src/* test/*",
     "tsc": "tsc",
-		"typings": "typings install",
-    "test": "npm run typings && npm run tsc && cross-env NODE_ENV=test DATABASE_URL=mongodb://localhost/test_voice_app ava"
+    "typings": "typings install",
+    "test": "npm run lint && npm run typings && npm run tsc && cross-env NODE_ENV=test DATABASE_URL=mongodb://localhost/test_voice_app ava"
   },
   "repository": {
     "type": "git",
