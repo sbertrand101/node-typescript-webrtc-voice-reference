@@ -1,0 +1,15 @@
+env:
+  global:
+  - CXX=g++-4.8
+language: node_js
+services:
+  - mongodb
+node_js:
+  - '4'
+  - '6'
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - g++-4.8
