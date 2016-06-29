@@ -36,7 +36,8 @@
   "scripts": {
     "lint": "tslint src/* public/* test/*",
     "tsc": "tsc",
-    "test": "npm run tsc && cross-env NODE_ENV=test DATABASE_URL=mongodb://localhost/test_voice_app ava"
+		"typings": "typings install",
+    "test": "npm run typings && npm run tsc && cross-env NODE_ENV=test DATABASE_URL=mongodb://localhost/test_voice_app ava"
   },
   "repository": {
     "type": "git",

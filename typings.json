@@ -3,7 +3,7 @@
 	"dependencies": {
 		"debug": "registry:npm/debug#2.0.0+20160511151334",
 		"jsonwebtoken": "registry:npm/jsonwebtoken#5.5.4+20160208220328",
-		"mongoose": "registry:npm/mongoose#4.3.5+20160610145311",
+		"mongoose": "registry:npm/mongoose#4.3.5+20160628072220",
 		"sinon": "registry:npm/sinon#1.16.0+20160427193336"
 	},
 	"globalDependencies": {
