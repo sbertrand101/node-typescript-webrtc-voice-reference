@@ -32,12 +32,21 @@ export default function getRouter(app: Koa, models: IModels): Router {
 	router.use(catapultMiddleware);
 	router.use(koaJwt);
 	router.use(async (ctx: IContext, next: Function) => {
-		const userId = ctx.state.user;
-		const user = await models.user.findById(userId).exec();
-		if (user) {
-			ctx.user = <IUser>user;
+		try {
+			const userId = ctx.state.user;
+			const user = await models.user.findById(userId).exec();
+			if (user) {
+				ctx.user = <IUser>user;
+			}
+			await next();
 		}
-		await next();
+		catch (err) {
+			ctx.body = {
+				code: err.status,
+				message: err.message
+			};
+			ctx.status = err.status;
+		}
 	});
 
 	router.post('/login', async (ctx: IContext) => {
@@ -50,7 +59,7 @@ export default function getRouter(app: Koa, models: IModels): Router {
 			return ctx.throw(400, 'Missing user');
 		}
 		if (await user.comparePassword(body.password)) {
-			const token = await (<any>(jwt.sign)).promise(user.id, jwtToken, { expiresIn: '7d' });
+			const token = await (<any>(jwt.sign)).promise(user.id, jwtToken, {});
 			ctx.body = { token, expire: moment().add(7, 'd').toISOString() };
 		}
 
