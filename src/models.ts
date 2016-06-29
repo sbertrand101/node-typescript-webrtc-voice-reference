@@ -93,10 +93,10 @@ const voiceMailMessageSchema = new Schema({
 
 voiceMailMessageSchema.set('toJSON', {transform: (doc: any, ret: any, options: any): any => {
 	return {
-		id: ret.id.toString(),
+		id: ret._id.toString(),
 		from: ret.from,
-		startTime: ret.startTime,
-		endTime: ret.endTime
+		startTime: ret.startTime.toISOString(),
+		endTime: ret.endTime.toISOString()
 	};
 }});
 

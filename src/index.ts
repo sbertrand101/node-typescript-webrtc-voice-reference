@@ -14,7 +14,7 @@ function getDatabaseUrl(): string {
 	if (env.MONGO_PORT_27017_TCP_ADDR && env.MONGO_PORT_27017_TCP_PORT) {
 		return `mongodb://${env.MONGO_PORT_27017_TCP_ADDR}:${env.MONGO_PORT_27017_TCP_PORT}/voiceApp`;
 	}
-	// Momgolab instances support
+	// Mongolab instances support
 	if (env.MONGOLAB_URI) {
 		return env.MONGOLAB_URI;
 	}
@@ -27,6 +27,7 @@ function getDatabaseUrl(): string {
 
 const app = new Koa();
 const mongoose = new Mongoose();
+(<any>mongoose).Promise = global.Promise;
 mongoose.connect(getDatabaseUrl(), (err: any) => {
 	if (err) {
 		console.error(`Error on connecting to DB: ${err.message}`);

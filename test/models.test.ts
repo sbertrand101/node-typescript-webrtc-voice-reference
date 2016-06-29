@@ -1,10 +1,12 @@
 import test from 'ava';
 import * as bcrypt from 'bcryptjs';
-import {Mongoose} from 'mongoose';
+import {Mongoose, Types} from 'mongoose';
 import getModels, {IModels} from '../src/models';
 import * as sinon from 'sinon';
 
-const models = getModels(new Mongoose());
+const mongoose = new Mongoose();
+(<any>mongoose).Promise = global.Promise;
+const models = getModels(mongoose);
 
 test.afterEach(t => {
 	if (t.context.stub) {
@@ -41,4 +43,16 @@ test.serial(`User#comparePassword() should fail if bcrypt.compare failed`, async
 	const user = new models.user();
 	await user.setPassword('password');
 	t.throws(user.comparePassword('password'), 'error');
+});
+
+test(`VoiceMailMessage#toJSON() should return valid json object`, async (t) => {
+	const id = new Types.ObjectId();
+	const m = new models.voiceMailMessage({
+		from: 'from',
+		startTime: '2016-06-29T10:00:00Z',
+		endTime: '2016-06-29T10:01:00Z',
+		mediaUrl: 'url'
+	});
+	m._id = id;
+	t.deepEqual(m.toJSON(), <any>{id: id.toString(), from: 'from', startTime: '2016-06-29T10:00:00.000Z', endTime: '2016-06-29T10:01:00.000Z'});
 });
