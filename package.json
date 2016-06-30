@@ -41,7 +41,7 @@
     "tsc": "tsc",
     "tsc:w": "tsc -w",
     "typings": "typings install",
-    "test": "cross-env NODE_ENV=test DATABASE_URL=mongodb://localhost/test_voice_app ava"
+    "test": "npm run make && cross-env NODE_ENV=test DATABASE_URL=mongodb://localhost/test_voice_app ava"
   },
   "repository": {
     "type": "git",
