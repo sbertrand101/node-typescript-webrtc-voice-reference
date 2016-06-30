@@ -32,10 +32,12 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 	router.use(koaJwt);
 	router.use(async (ctx: IContext, next: Function) => {
 		try {
-			const userId = ctx.state.user;
-			const user = await models.user.findById(userId).exec();
-			if (user) {
-				ctx.user = <IUser>user;
+			const userId = (ctx.state.user || '').replace(/\"/gi, '');
+			if (userId) {
+				const user = await models.user.findById(userId).exec();
+				if (user) {
+					ctx.user = <IUser>user;
+				}
 			}
 			await next();
 		}
@@ -59,7 +61,7 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 		}
 		if (await user.comparePassword(body.password)) {
 			const token = await (<any>(jwt.sign)).promise(user.id, jwtToken, {});
-			ctx.body = { token, expire: moment().add(7, 'd').toISOString() };
+			ctx.body = { token, expire: moment().add(30, 'd').toISOString() };
 		}
 
 	});
@@ -91,7 +93,9 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 	});
 
 	router.get('/sipData', async (ctx: IContext) => {
+		debug('Get SIP data');
 		const token = await api.createSIPAuthToken(ctx.user.endpointId);
+		debug('Return SIP data as JSON');
 		ctx.body = {
 			phoneNumber: ctx.user.phoneNumber,
 			sipUri: ctx.user.sipUri,
