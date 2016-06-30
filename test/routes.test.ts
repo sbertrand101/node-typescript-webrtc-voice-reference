@@ -1,7 +1,6 @@
 import test from 'ava';
 import {runWithServer, ISuperTest} from './helpers';
 import {Response} from 'supertest';
-import * as TypeMoq from 'typemoq';
 import * as sinon from 'sinon';
 import {Readable} from 'stream';
 import getRouter, {IContext} from '../src/routes';
