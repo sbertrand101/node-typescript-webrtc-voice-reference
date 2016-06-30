@@ -1,9 +1,11 @@
 import * as Koa from 'koa';
+import * as Router from 'koa-router';
+
 import {Mongoose} from 'mongoose';
 import * as debugFactory from 'debug';
-import {catapultMiddleware} from './catapult';
 import getModels, {IModels} from './models';
 import getRouter from './routes';
+import {ICatapultApi, CatapultApi} from './catapult';
 import staticFilesOptions from './staticFilesOptions';
 
 const debug = debugFactory('index');
@@ -15,8 +17,8 @@ function getDatabaseUrl(): string {
 		return `mongodb://${env.MONGO_PORT_27017_TCP_ADDR}:${env.MONGO_PORT_27017_TCP_PORT}/voiceApp`;
 	}
 	// Mongolab instances support
-	if (env.MONGOLAB_URI) {
-		return env.MONGOLAB_URI;
+	if (env.MONGODB_URI) {
+		return env.MONGODB_URI;
 	}
 	// via DATABASE_URL
 	if (env.DATABASE_URL) {
@@ -25,28 +27,31 @@ function getDatabaseUrl(): string {
 	return 'mongodb://localhost/voiceApp';
 }
 
-const app = new Koa();
 const mongoose = new Mongoose();
-(<any>mongoose).Promise = global.Promise;
-mongoose.connect(getDatabaseUrl(), (err: any) => {
-	if (err) {
-		console.error(`Error on connecting to DB: ${err.message}`);
-		process.exit(1);
-	}
-});
+	(<any>mongoose).Promise = global.Promise;
+	mongoose.connect(getDatabaseUrl(), (err: any) => {
+		if (err) {
+			console.error(`Error on connecting to DB: ${err.message}`);
+			process.exit(1);
+		}
+	});
 
 export const models = getModels(mongoose);
-const router = getRouter(app, models);
 
-app
-	.use(require('koa-static')(staticFilesOptions.root, staticFilesOptions))
-	.use(catapultMiddleware)
-	.use(router.allowedMethods())
-	.use(router.routes());
-
-if (app.env !== 'test') {
-	app.listen(process.env.PORT || 3000, () => debug('Server started'));
+export class Application extends Koa {
+	router: Router;
+	constructor(api: ICatapultApi) {
+		super();
+		this.router = getRouter(this, models, api);
+		this
+			.use(require('koa-static')(staticFilesOptions.root, staticFilesOptions))
+			.use(this.router.allowedMethods())
+			.use(this.router.routes());
+	}
 }
 
-export default app;
+if (process.env.NODE_ENV !== 'test') {
+	const app = new Application(new CatapultApi(process.env.CATAPULT_USER_ID, process.env.CATAPULT_API_TOKEN, process.env.CATAPULT_API_SECRET));
+	app.listen(process.env.PORT || 3000, () => debug('Server started'));
+}
 

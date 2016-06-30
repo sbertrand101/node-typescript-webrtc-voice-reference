@@ -6,8 +6,8 @@
 		"noImplicitAny": true,
 		"removeComments": true,
 		"moduleResolution": "node",
-		"sourceMap": true,
-		"inlineSources": true
+		"inlineSources": true,
+		"inlineSourceMap": true
 	},
 	"exclude": [
 		"node_modules"

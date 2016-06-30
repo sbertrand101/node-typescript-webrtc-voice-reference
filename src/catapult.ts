@@ -48,10 +48,12 @@ export interface IMediaFile {
 	contentType: string;
 }
 
-class CatapultApi implements ICatapultApi {
+export class CatapultApi implements ICatapultApi {
 	constructor(private userId: string, private apiToken: string, private apiSecret: string) {
 	}
+
 	createPhoneNumber(areaCode: string): Promise<string> {
+		console.log('Here');
 		throw new Error('Not implemented yet');
 	}
 	createSIPAccount(): Promise<ISIPAccount> {
@@ -110,11 +112,6 @@ class CatapultApi implements ICatapultApi {
 		throw new Error('Not implemented yet');
 	}
 }
-
-export const catapultMiddleware = async (ctx: IContext, next: Function) => {
-	ctx.api = <ICatapultApi>new CatapultApi(process.env.CATAPULT_USER_ID, process.env.CATAPULT_API_TOKEN, process.env.CATAPULT_API_SECRET);
-	await next();
-};
 
 export function buildAbsoluteUrl(ctx: IContext, path: string): string {
 	if (path[0] !== '/') {

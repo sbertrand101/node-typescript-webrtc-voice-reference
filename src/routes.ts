@@ -7,7 +7,7 @@ import * as debugFactory from 'debug';
 import * as PubSub from 'pubsub-js';
 
 import {IUser, IActiveCall, IVoiceMailMessage, IModels} from './models';
-import {ICatapultApi, buildAbsoluteUrl, catapultMiddleware} from './catapult';
+import {ICatapultApi, buildAbsoluteUrl} from './catapult';
 
 require('promisify-patch').patch();
 
@@ -26,10 +26,9 @@ export interface IContext extends Router.IRouterContext {
 	api: ICatapultApi;
 }
 
-export default function getRouter(app: Koa, models: IModels): Router {
+export default function getRouter(app: Koa, models: IModels, api: ICatapultApi): Router {
 	const router = new Router();
 	router.use(require('koa-convert')(require('koa-body')()));
-	router.use(catapultMiddleware);
 	router.use(koaJwt);
 	router.use(async (ctx: IContext, next: Function) => {
 		try {
@@ -45,7 +44,7 @@ export default function getRouter(app: Koa, models: IModels): Router {
 				code: err.status,
 				message: err.message
 			};
-			ctx.status = err.status;
+			ctx.status = err.status || 500;
 		}
 	});
 
@@ -80,9 +79,9 @@ export default function getRouter(app: Koa, models: IModels): Router {
 		await user.setPassword(body.password);
 
 		debug(`Reserving phone number for area code ${body.areaCode}`);
-		const phoneNumber = await ctx.api.createPhoneNumber(body.areaCode);
+		const phoneNumber = await api.createPhoneNumber(body.areaCode);
 		debug('Creating SIP account');
-		const sipAccount = await ctx.api.createSIPAccount();
+		const sipAccount = await api.createSIPAccount();
 		user.phoneNumber = phoneNumber;
 		user.sipUri = sipAccount.uri;
 		user.sipPassword = sipAccount.password;
@@ -92,7 +91,7 @@ export default function getRouter(app: Koa, models: IModels): Router {
 	});
 
 	router.get('/sipData', async (ctx: IContext) => {
-		const token = await ctx.api.createSIPAuthToken(ctx.user.endpointId);
+		const token = await api.createSIPAuthToken(ctx.user.endpointId);
 		ctx.body = {
 			phoneNumber: ctx.user.phoneNumber,
 			sipUri: ctx.user.sipUri,
@@ -104,7 +103,7 @@ export default function getRouter(app: Koa, models: IModels): Router {
 
 	router.post('/callCallback', async (ctx: IContext) => {
 		debug(`Catapult Event: ${ctx.request.url}`);
-		const api = ctx.api;
+		const api = api;
 		const form = (<any>ctx.request).body;
 		const primaryCallId = getPrimaryCallId(form.tag);
 		const fromAnotherLeg = (primaryCallId !== '');
@@ -121,7 +120,7 @@ export default function getRouter(app: Koa, models: IModels): Router {
 				const to = form.to;
 				if (fromAnotherLeg) {
 					debug('Another leg has answered');
-					await ctx.api.stopPlayAudioToCall(callId); // stop tones
+					await api.stopPlayAudioToCall(callId); // stop tones
 					break;
 				}
 				user = await models.user.findOne({ sipUri: from, phoneNumber: to }).exec();
@@ -132,10 +131,10 @@ export default function getRouter(app: Koa, models: IModels): Router {
 				if (to === user.phoneNumber) {
 					debug(`Bridging incoming call with ${user.sipUri}`);
 					const callerId = await getCallerId(models, from);
-					await ctx.api.playAudioToCall(callId, tonesURL, true, '');
+					await api.playAudioToCall(callId, tonesURL, true, '');
 
 					debug(`Using caller id ${callerId}`);
-					const bridgeId = await ctx.api.createBridge({
+					const bridgeId = await api.createBridge({
 						callIds: [callId],
 						bridgeAudio: true
 					});
@@ -171,7 +170,7 @@ export default function getRouter(app: Koa, models: IModels): Router {
 				}
 				if (from === user.sipUri) {
 					debug(`Transfering outgoing call to  ${to}`);
-					await ctx.api.transferCall(to, user.phoneNumber);
+					await api.transferCall(to, user.phoneNumber);
 					return;
 				}
 				break;
@@ -182,12 +181,12 @@ export default function getRouter(app: Koa, models: IModels): Router {
 						case 'Greeting':
 							// after greeting play beep
 							debug('Play beep');
-							await ctx.api.playAudioToCall(form.callId, beepURL, false, 'Beep');
+							await api.playAudioToCall(form.callId, beepURL, false, 'Beep');
 							break;
 						case 'Beep':
 							// after beep srart voice message recording
 							debug('Starting call recording');
-							await ctx.api.updateCall(form.callId, { recordingEnabled: true });
+							await api.updateCall(form.callId, { recordingEnabled: true });
 							break;
 					}
 				}
@@ -196,7 +195,7 @@ export default function getRouter(app: Koa, models: IModels): Router {
 				if (fromAnotherLeg) {
 					// another leg didn't answer call (for bridged incoming call)
 					debug('Another leg timeout');
-					await ctx.api.stopPlayAudioToCall(callId);
+					await api.stopPlayAudioToCall(callId);
 					await models.activeCall.update({ callId: callId }, { bridgeId: '' }); // to suppress hang up this call too
 					debug('Moving to voice mail');
 					await playGreeting(ctx, callId, user);
@@ -207,8 +206,8 @@ export default function getRouter(app: Koa, models: IModels): Router {
 					if (form.state === 'complete') {
 						// Voice message has been recorded. Save it into db.
 						debug('Get recorded voice message info');
-						const recording = await ctx.api.getRecording(form.recordingId);
-						const call = await ctx.api.getCall(callId);
+						const recording = await api.getRecording(form.recordingId);
+						const call = await api.getCall(callId);
 						if (!user) {
 							debug('Saving recorded voice message to db');
 							const message = new models.voiceMailMessage({
@@ -238,14 +237,14 @@ export default function getRouter(app: Koa, models: IModels): Router {
 				const activeCalls = await models.activeCall.find({ bridgeId: activeCall.bridgeId, $not: { callId } }).exec();
 
 				debug(`Hangup other ${activeCalls.length} calls`);
-				await Promise.all(activeCalls.map((c: IActiveCall) => ctx.api.hangup(c.callId)));
+				await Promise.all(activeCalls.map((c: IActiveCall) => api.hangup(c.callId)));
 				break;
 		}
 		ctx.body = '';
 	});
 
 	router.post('/recordGreeting', async (ctx: IContext) => {
-		const callId = await ctx.api.createCall({
+		const callId = await api.createCall({
 			from: ctx.user.phoneNumber,
 			to: ctx.user.sipUri,
 			callbackUrl: buildAbsoluteUrl(ctx, '/recordCallback')
@@ -264,7 +263,7 @@ export default function getRouter(app: Koa, models: IModels): Router {
 		debug('Catapult Event for greeting record: ${ctx.request.url}');
 		const user = await getUserForCall(form.callId, models);
 		const mainMenu = async () => {
-			await ctx.api.createGather({
+			await api.createGather({
 				maxDigits: 1,
 				interDigitTimeout: 30,
 				prompt: {
@@ -288,17 +287,17 @@ export default function getRouter(app: Koa, models: IModels): Router {
 									return await playGreeting(ctx, form.callId, user);
 								case '2':
 									debug('Record greeting');
-									return await ctx.api.speakSentenceToCall(form.callId, 'Say your greeting after beep. Press 0 to complete recording.', 'PlayBeep');
+									return await api.speakSentenceToCall(form.callId, 'Say your greeting after beep. Press 0 to complete recording.', 'PlayBeep');
 								case '3':
 									debug('Reset greeting');
 									await models.user.update({ _id: user.id }, { greetingUrl: '' });
-									return await ctx.api.speakSentenceToCall(form.callId, 'Your greeting has been set to default.', 'PlayMenu');
+									return await api.speakSentenceToCall(form.callId, 'Your greeting has been set to default.', 'PlayMenu');
 							}
 						}
 						case 'GreetingRecording': {
 							if (form.digits === '0') {
 								debug('Stop greeting recording');
-								await ctx.api.updateCall(form.callId, { recordingEnabled: false });
+								await api.updateCall(form.callId, { recordingEnabled: false });
 							}
 						}
 					}
@@ -306,12 +305,12 @@ export default function getRouter(app: Koa, models: IModels): Router {
 				break;
 			case `recording`:
 				if (form.state === 'complete') {
-					const recording = await ctx.api.getRecording(form.recordingId);
+					const recording = await api.getRecording(form.recordingId);
 					ctx.user.greetingUrl = recording.media;
 					await ctx.user.save();
-					const call = await ctx.api.getCall(form.callId);
+					const call = await api.getCall(form.callId);
 					if (call.state === 'active') {
-						return await ctx.api.speakSentenceToCall(form.callId, 'Your greeting has been saved.', 'PlayMenu');
+						return await api.speakSentenceToCall(form.callId, 'Your greeting has been saved.', 'PlayMenu');
 					}
 				}
 				break;
@@ -321,12 +320,12 @@ export default function getRouter(app: Koa, models: IModels): Router {
 					switch (form.tag) {
 						case 'PlayBeep':
 							debug('Play beep');
-							return await ctx.api.playAudioToCall(form.callId, beepURL, false, 'Beep');
+							return await api.playAudioToCall(form.callId, beepURL, false, 'Beep');
 						case 'Beep':
 							// after beep srart voice message recording
 							debug('Start greeting recording');
-							await ctx.api.updateCall(form.callId, { recordingEnabled: true });
-							await ctx.api.createGather({
+							await api.updateCall(form.callId, { recordingEnabled: true });
+							await api.createGather({
 								maxDigits: 1,
 								interDigitTimeout: 30,
 								tag: 'GreetingRecording'
@@ -351,7 +350,7 @@ export default function getRouter(app: Koa, models: IModels): Router {
 			return ctx.throw(404);
 		}
 		const parts = (voiceMessage.mediaUrl || '').split('/');
-		const file = await ctx.api.downloadMediaFile(parts[parts.length - 1]);
+		const file = await api.downloadMediaFile(parts[parts.length - 1]);
 		ctx.headers['Content-Type'] = file.contentType;
 		ctx.body = file.content;
 	});
@@ -422,9 +421,9 @@ async function playGreeting(ctx: IContext, callId: string, user: IUser) {
 	// Play greeting
 	if (user.greetingUrl === '') {
 		debug('Play default greeting');
-		await ctx.api.speakSentenceToCall(callId, 'Hello. Please leave a message after beep.', 'Greeting');
+		await api.speakSentenceToCall(callId, 'Hello. Please leave a message after beep.', 'Greeting');
 	} else {
 		debug(`Play user's greeting`);
-		ctx.api.playAudioToCall(callId, user.greetingUrl, false, 'Greeting');
+		api.playAudioToCall(callId, user.greetingUrl, false, 'Greeting');
 	}
 }
