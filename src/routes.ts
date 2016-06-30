@@ -103,7 +103,6 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 
 	router.post('/callCallback', async (ctx: IContext) => {
 		debug(`Catapult Event: ${ctx.request.url}`);
-		const api = api;
 		const form = (<any>ctx.request).body;
 		const primaryCallId = getPrimaryCallId(form.tag);
 		const fromAnotherLeg = (primaryCallId !== '');
@@ -198,7 +197,7 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 					await api.stopPlayAudioToCall(callId);
 					await models.activeCall.update({ callId: callId }, { bridgeId: '' }); // to suppress hang up this call too
 					debug('Moving to voice mail');
-					await playGreeting(ctx, callId, user);
+					await playGreeting(api, callId, user);
 					break;
 				}
 			case 'recording':
@@ -284,7 +283,7 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 							switch (form.digits) {
 								case '1':
 									debug('Play greeting');
-									return await playGreeting(ctx, form.callId, user);
+									return await playGreeting(api, form.callId, user);
 								case '2':
 									debug('Record greeting');
 									return await api.speakSentenceToCall(form.callId, 'Say your greeting after beep. Press 0 to complete recording.', 'PlayBeep');
@@ -417,7 +416,7 @@ async function getCallerId(models: IModels, phoneNumber: string): Promise<string
 	return phoneNumber;
 }
 
-async function playGreeting(ctx: IContext, callId: string, user: IUser) {
+async function playGreeting(api: ICatapultApi, callId: string, user: IUser) {
 	// Play greeting
 	if (user.greetingUrl === '') {
 		debug('Play default greeting');

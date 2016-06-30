@@ -35,7 +35,7 @@
     "typings": "1.3.0"
   },
   "scripts": {
-    "clean": "rimraf src/*.d.ts src/*.js src/*.map test/*.d.ts test/*.js test/*.map",
+    "clean": "rimraf src/*.js test/*.js",
     "make": "npm run lint && npm run typings && npm run tsc",
     "lint": "npm run clean && tslint src/* test/*",
     "tsc": "tsc",
