@@ -22,7 +22,7 @@ catapult.Client.globalOptions.apiToken = process.env.CATAPULT_API_TOKEN;
 catapult.Client.globalOptions.apiSecret = process.env.CATAPULT_API_SECRET;
 catapult.Client.globalOptions.userId = process.env.CATAPULT_USER_ID;
 
-mongoose.connect(process.env.MONGOLAB_URI || "mongodb://localhost/voice-reference-app");
+mongoose.connect(process.env.MONGODB_URI || process.env.MONGOLAB_URI || "mongodb://localhost/voice-reference-app");
 mongoose.connection.on("error", console.error.bind(console, "connection error:"));
 
 //wrap Catapult API functions. Make them thenable (i.e. they will use Promises intead of callbacks)
