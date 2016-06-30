@@ -3,6 +3,7 @@ import {runWithServer, ISuperTest} from './helpers';
 import {Response} from 'supertest';
 import * as TypeMoq from 'typemoq';
 import * as sinon from 'sinon';
+import {Readable} from 'stream';
 import getRouter, {IContext} from '../src/routes';
 import {models} from '../src/index';
 
@@ -98,7 +99,7 @@ test(`GET '/sipData' should return sip auth data for user`, async (t) => {
 		clock.restore();
 		t.true(response.ok);
 		t.true(stub1.called);
-		t.same(response.body, {
+		t.deepEqual(response.body, {
 			phoneNumber: '+1234567890',
 			sipUri: 'test@test.net',
 			sipPassword: '123456',
@@ -112,5 +113,86 @@ test(`GET '/sipData' should fail on unauthorized call`, async (t) => {
 	await runWithServer(async (request, app) => {
 		const response = <Response><any>(await request.get('/sipData'));
 		t.false(response.ok);
+	});
+});
+
+test(`GET '/voiceMessages' should return list of messages`, async (t) => {
+	await runWithServer(async (request, app) => {
+		let response = await request.login('voiceMessages1');
+		t.true(response.ok);
+		const user = await models.user.findOne({ userName: 'voiceMessages1' }).exec();
+		await models.voiceMailMessage.create({
+			startTime: '2016-06-30T12:00:00Z',
+			endTime: '2016-06-30T12:01:00Z',
+			mediaUrl: 'url1',
+			from: 'from1',
+			user: user.id
+		}, {
+				startTime: '2016-06-30T12:02:00Z',
+				endTime: '2016-06-30T12:03:00Z',
+				mediaUrl: 'url2',
+				from: 'from2',
+				user: user.id
+			}, {
+				startTime: '2016-06-30T12:03:00Z',
+				endTime: '2016-06-30T12:04:00Z',
+				mediaUrl: 'url3',
+				from: 'from3'
+			});
+		response = <Response><any>(await request.get('/voiceMessages').set('Authorization', `Bearer ${response.body.token}`));
+		t.true(response.ok);
+		t.is(response.body.length, 2);
+		t.is(response.body[0].from, 'from2');
+		t.is(response.body[1].from, 'from1');
+	});
+});
+
+test(`GET '/voiceMessages/:id/media' should return file content`, async (t) => {
+	await runWithServer(async (request, app) => {
+		let response = await request.login('voiceMessages2');
+		t.true(response.ok);
+		const user = await models.user.findOne({ userName: 'voiceMessages2' }).exec();
+		await models.voiceMailMessage.remove({user: user.id});
+		const message = new models.voiceMailMessage({
+			startTime: '2016-06-30T10:00:00Z',
+			endTime: '2016-06-30T10:01:00Z',
+			mediaUrl: 'http://loclahost/file1',
+			from: 'fr1',
+			user: user.id
+		});
+		await message.save();
+		const stream = new Readable();
+		stream.push('123456');
+		stream.push(null);
+		const stub1 = sinon.stub(app.api, 'downloadMediaFile').withArgs('file1').returns(Promise.resolve({
+			content: stream,
+			contentType: 'text/plain'
+		}));
+		response = <Response><any>(await request.get(`/voiceMessages/${message.id}/media`).set('Authorization', `Bearer ${response.body.token}`));
+		t.true(response.ok);
+		t.true(stub1.called);
+		t.is(response.text, '123456');
+		t.is(response.type, 'text/plain');
+	});
+});
+
+test(`DELETE '/voiceMessages/:id' should delete voice message`, async (t) => {
+	await runWithServer(async (request, app) => {
+		let response = await request.login('voiceMessages3');
+		t.true(response.ok);
+		const user = await models.user.findOne({ userName: 'voiceMessages3' }).exec();
+		await models.voiceMailMessage.remove({user: user.id});
+		const message = new models.voiceMailMessage({
+			startTime: '2016-06-30T10:00:00Z',
+			endTime: '2016-06-30T10:01:00Z',
+			mediaUrl: 'http://loclahost/file2',
+			from: 'fr2',
+			user: user.id
+		});
+		await message.save();
+		response = <Response><any>(await request.delete(`/voiceMessages/${message.id}`).set('Authorization', `Bearer ${response.body.token}`));
+		t.true(response.ok);
+		const m = await models.voiceMailMessage.findById(message.id.toString()).exec();
+		t.falsy(m);
 	});
 });

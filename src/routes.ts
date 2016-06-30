@@ -343,8 +343,8 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 	});
 
 	router.get('/voiceMessages', async (ctx: IContext) => {
-		const list = await models.voiceMailMessage.find({ user: ctx.user.id }).sort(['startTime', 'descending']).exec();
-		this.body = list.map(i => i.toJSON());
+		const list = await models.voiceMailMessage.find({ user: ctx.user.id }).sort({startTime: -1}).exec();
+		ctx.body = list.map(i => i.toJSON());
 	});
 
 	router.get('/voiceMessages/:id/media', async (ctx: IContext) => {
@@ -354,7 +354,7 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 		}
 		const parts = (voiceMessage.mediaUrl || '').split('/');
 		const file = await api.downloadMediaFile(parts[parts.length - 1]);
-		ctx.headers['Content-Type'] = file.contentType;
+		ctx.type = file.contentType;
 		ctx.body = file.content;
 	});
 

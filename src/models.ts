@@ -86,7 +86,7 @@ const activeCallSchema = new Schema({
 const voiceMailMessageSchema = new Schema({
 	startTime: {type: Date, index: true},
 	endTime:   Date,
-	mediaURL:  String,
+	mediaUrl:  String,
 	from:      String,
 	user:  {type: Schema.Types.ObjectId, ref: 'user'}
 });
