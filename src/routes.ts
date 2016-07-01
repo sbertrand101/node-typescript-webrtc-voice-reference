@@ -2,6 +2,7 @@ import * as Koa from 'koa';
 import * as Router from 'koa-router';
 import * as jwt from 'jsonwebtoken';
 import * as moment from 'moment';
+import {Readable} from 'stream';
 import {Query} from 'mongoose';
 import * as debugFactory from 'debug';
 import * as PubSub from 'pubsub-js';
@@ -15,7 +16,7 @@ const debug = debugFactory('routes');
 
 const beepURL = 'https://s3.amazonaws.com/bwdemos/beep.mp3';
 const tonesURL = 'https://s3.amazonaws.com/bwdemos/media/ring.mp3';
-const jwtToken = '42VFYo1fiIaFa1nguHI2pmulRo2sKyf-';
+export const jwtToken = '42VFYo1fiIaFa1nguHI2pmulRo2sKyf-';
 
 const koaJwt = require('koa-jwt')({
 	secret: jwtToken
@@ -343,7 +344,7 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 	});
 
 	router.get('/voiceMessages', async (ctx: IContext) => {
-		const list = await models.voiceMailMessage.find({ user: ctx.user.id }).sort({startTime: -1}).exec();
+		const list = await models.voiceMailMessage.find({ user: ctx.user.id }).sort({ startTime: -1 }).exec();
 		ctx.body = list.map(i => i.toJSON());
 	});
 
@@ -365,29 +366,34 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 
 	router.get('/voiceMessagesStream', async (ctx: IContext) => {
 		const token = ctx.request.query.token;
-		const userId = await (<any>jwt.verify).promise(token, jwtToken);
+		if (!token) {
+			return ctx.throw(400, 'Missing token');
+		}
+		const userId = (await (<any>jwt.verify).promise(token, jwtToken)).replace(/\"/g, '');
 		const user = await models.user.findById(userId).exec();
 		if (!user) {
 			return ctx.throw(404);
 		}
-		ctx.request.socket.setTimeout(Infinity);
-		ctx.headers = {
-			'Content-Type': 'text/event-stream',
-			'Cache-Control': 'no-cache',
-			'Connection': 'keep-alive'
-		};
-		ctx.response.res.write('\n');
+		const req = ctx.req;
+		const stream = new SimpleReadable();
+		req.setTimeout(Number.MAX_VALUE, () => {});
+		ctx.set('Cache-Control', 'no-cache');
+		ctx.set('Connection', 'keep-alive');
+		ctx.type = 'text/event-stream';
+		ctx.body = stream;
 		const subToken = PubSub.subscribe(userId, (message: any, data: any) => {
 			if (data) {
 				debug('Emit SSE event');
-				ctx.response.res.write(`id: ${data.id}\n`);
-				ctx.response.res.write(`data: ${JSON.stringify(data)}\n\n`);
+				stream.push(new Buffer(`id: ${data.id}\ndata: ${JSON.stringify(data)}\n\n`));
 			}
 		});
-		// TODO listen to new voice messages and emit new events
-		ctx.request.req.on('close', () => {
+		const close = () => {
 			PubSub.unsubscribe(subToken);
-		});
+			req.socket.removeListener('error', close);
+			req.socket.removeListener('close', close);
+		};
+		req.socket.on('error', close);
+		req.socket.on('close', close);
 	});
 
 	return router;
@@ -428,5 +434,10 @@ async function playGreeting(api: ICatapultApi, callId: string, user: IUser) {
 	} else {
 		debug(`Play user's greeting`);
 		api.playAudioToCall(callId, user.greetingUrl, false, 'Greeting');
+	}
+}
+
+class SimpleReadable extends Readable {
+	_read(size: number): void {
 	}
 }
