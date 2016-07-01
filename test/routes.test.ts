@@ -5,8 +5,14 @@ import * as sinon from 'sinon';
 import {Readable, Writable} from 'stream';
 import * as jwt from 'jsonwebtoken';
 import * as PubSub from 'pubsub-js';
-import getRouter, {IContext, jwtToken} from '../src/routes';
+import getRouter, {IContext, jwtToken, SimpleReadable} from '../src/routes';
 import {models} from '../src/index';
+
+SimpleReadable.prototype._read = function (size) {
+	setTimeout(() => this.emit('end'), 500);
+};
+
+
 
 test(`getRouter shpuld return router object`, (t) => {
 	const router = getRouter(null, null, null);
@@ -198,9 +204,8 @@ test(`DELETE '/voiceMessages/:id' should delete voice message`, async (t) => {
 	});
 });
 
-/*
 test(`GET '/voiceMessagesStream should listen to server side events`, async (t) => {
-	await runWithServer(async (request, app) => {
+	await runWithServer(async (request, app, server) => {
 		let response = await request.login('voiceMessages4');
 		t.true(response.ok);
 		const user = await models.user.findOne({ userName: 'voiceMessages4' }).exec();
@@ -231,18 +236,21 @@ test(`GET '/voiceMessagesStream should fail for invalid token`, async (t) => {
 	});
 });
 
-test.skip(`GET '/voiceMessagesStream should listen to server side events`, async (t) => {
+test(`GET '/voiceMessagesStream should listen to server side events`, async (t) => {
 	await runWithServer(async (request, app) => {
-		let response = await request.login('voiceMessages4');
+		let response = await request.login('voiceMessages7');
 		t.true(response.ok);
-		const user = await models.user.findOne({ userName: 'voiceMessages4' }).exec();
+		const user = await models.user.findOne({ userName: 'voiceMessages7' }).exec();
 		const token = await (<any>(jwt.sign)).promise(user.id, jwtToken, {});
 		let sseCalled = false;
 		class MockWritable extends Writable
 		{
 			_write(chunk: any, encoding: string, callback: Function): void {
+				const text = chunk.toString();
+				if (text !== '\n'){
+					t.is(text, 'id: id\ndata: {"id":"id","message":"message"}\n\n');
+				}
 				sseCalled = true;
-				t.is(chunk.toString(), 'id: id\ndata: {"id":"id","message":"message"}\n\n');
 				callback();
 			}
 		}
@@ -255,12 +263,11 @@ test.skip(`GET '/voiceMessagesStream should listen to server side events`, async
 				.pipe(stream);
 			setTimeout(() => {
 				PubSub.publish(user.id, {id: 'id', message: 'message'});
-				setTimeout(resolve, 150);
 			}, 50);
 		});
 		t.true(sseCalled);
 	});
-}); */
+});
 
 test(`POST '/recordGreeting' should make call callback`, async (t) => {
 	await runWithServer(async (request, app) => {

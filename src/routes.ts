@@ -383,6 +383,7 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 		ctx.set('Connection', 'keep-alive');
 		ctx.type = 'text/event-stream';
 		ctx.body = stream;
+		stream.push(new Buffer('\n'));
 		const subToken = PubSub.subscribe(userId, (message: any, data: any) => {
 			if (data) {
 				debug('Emit SSE event');
@@ -439,7 +440,7 @@ async function playGreeting(api: ICatapultApi, callId: string, user: IUser) {
 	}
 }
 
-class SimpleReadable extends Readable {
+export class SimpleReadable extends Readable {
 	_read(size: number): void {
 	}
 }
