@@ -1,18 +1,16 @@
 import test from 'ava';
-import {runWithServer, ISuperTest} from './helpers';
+import {runWithServer, ISuperTest, createUser} from './helpers';
 import {Response} from 'supertest';
 import * as sinon from 'sinon';
 import {Readable, Writable} from 'stream';
 import * as jwt from 'jsonwebtoken';
 import * as PubSub from 'pubsub-js';
-import getRouter, {IContext, jwtToken, SimpleReadable} from '../src/routes';
+import getRouter, {IContext, jwtToken, SimpleReadable, tonesURL} from '../src/routes';
 import {models} from '../src/index';
 
 SimpleReadable.prototype._read = function (size) {
 	setTimeout(() => this.emit('end'), 500);
 };
-
-
 
 test(`getRouter shpuld return router object`, (t) => {
 	const router = getRouter(null, null, null);
@@ -108,7 +106,7 @@ test(`GET '/sipData' should return sip auth data for user`, async (t) => {
 		t.true(stub1.called);
 		t.deepEqual(response.body, {
 			phoneNumber: '+1234567890',
-			sipUri: 'test@test.net',
+			sipUri: 'sip:test@test.net',
 			sipPassword: '123456',
 			token: 'token',
 			expire: '1970-01-01T01:00:00.000Z'
@@ -278,6 +276,60 @@ test(`POST '/recordGreeting' should make call callback`, async (t) => {
 		t.true(response.ok);
 		t.true(stub.called);
 		t.is(stub.lastCall.args[0].from, '+1234567890');
-		t.is(stub.lastCall.args[0].to, 'test@test.net');
+		t.is(stub.lastCall.args[0].to, 'sip:test@test.net');
+	});
+});
+
+test(`POST '/callCallback' should handle outgoing call`, async (t) => {
+	await runWithServer(async (request, app) => {
+		const stub = sinon.stub(app.api, 'transferCall')
+			.withArgs('+1472583690', '+1234567890')
+			.returns(Promise.resolve());
+		const user = await createUser('ouser1');
+		await models.user.update({ _id: user.id }, { $set: { sipUri: 'sip:otest@test.com' } });
+		const response = <Response><any>(await request.post(`/callCallback`).send({
+			callId: 'callID',
+			eventType: 'answer',
+			from: 'sip:otest@test.com',
+			to: '+1472583690'
+		}));
+		t.true(response.ok);
+		t.true(stub.called);
+	});
+});
+
+test(`POST '/callCallback' should handle incoming call`, async (t) => {
+	await runWithServer(async (request, app, server) => {
+		const stub1 = sinon.stub(app.api, 'playAudioToCall')
+			.withArgs('callID', tonesURL, true, '')
+			.returns(Promise.resolve());
+		const stub2 = sinon.stub(app.api, 'createBridge')
+			.withArgs({
+				callIds: ['callID'],
+				bridgeAudio: true
+			})
+			.returns(Promise.resolve('bridgeId'));
+		const stub3 = sinon.stub(app.api, 'createCall')
+			.withArgs({
+				bridgeId: 'bridgeId',
+				from: '+1472583690',
+				to: 'sip:itest@test.com',
+				tag: 'AnotherLeg:callID',
+				callTimeout: 10,
+				callbackUrl: `http://127.0.0.1:${server.address().port}/callCallback`
+			})
+			.returns(Promise.resolve('anotherCallId'));
+		const user = await createUser('iuser1');
+		await models.user.update({ _id: user.id }, { $set: { sipUri: 'sip:itest@test.com', phoneNumber: '+1234567891' } });
+		const response = <Response><any>(await request.post(`/callCallback`).send({
+			callId: 'callID',
+			eventType: 'answer',
+			from: '+1472583690',
+			to: '+1234567891'
+		}));
+		t.true(response.ok);
+		t.true(stub1.called);
+		t.true(stub2.called);
+		t.true(stub3.called);
 	});
 });

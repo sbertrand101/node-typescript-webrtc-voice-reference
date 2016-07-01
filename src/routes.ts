@@ -14,8 +14,8 @@ require('promisify-patch').patch();
 
 const debug = debugFactory('routes');
 
-const beepURL = 'https://s3.amazonaws.com/bwdemos/beep.mp3';
-const tonesURL = 'https://s3.amazonaws.com/bwdemos/media/ring.mp3';
+export const beepURL = 'https://s3.amazonaws.com/bwdemos/beep.mp3';
+export const tonesURL = 'https://s3.amazonaws.com/bwdemos/media/ring.mp3';
 export const jwtToken = '42VFYo1fiIaFa1nguHI2pmulRo2sKyf-';
 
 const koaJwt = require('koa-jwt')({
@@ -109,6 +109,7 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 	router.post('/callCallback', async (ctx: IContext) => {
 		debug(`Catapult Event: ${ctx.request.url}`);
 		const form = (<any>ctx.request).body;
+		debug(`Body: %j`, form);
 		const primaryCallId = getPrimaryCallId(form.tag);
 		const fromAnotherLeg = (primaryCallId !== '');
 		let callId: string = '';
@@ -117,9 +118,11 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 		} else {
 			callId = form.callId;
 		}
+		ctx.body = '';
 		let user = await getUserForCall(callId, models);
 		switch (form.eventType) {
 			case 'answer':
+				debug('answer');
 				const from = form.from;
 				const to = form.to;
 				if (fromAnotherLeg) {
@@ -127,8 +130,7 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 					await api.stopPlayAudioToCall(callId); // stop tones
 					break;
 				}
-				user = await models.user.findOne({ sipUri: from, phoneNumber: to }).exec();
-
+				user = await models.user.findOne({ $or: [{ sipUri: from }, { phoneNumber: to }] }).exec();
 				if (!user) {
 					break;
 				}
@@ -153,11 +155,12 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 					});
 
 					debug(`Calling to another leg ${user.sipUri}`);
+
 					const anotherCallId = await api.createCall({
 						bridgeId,
 						from: callerId,
 						to: user.sipUri,
-						tag: `AnotherLeg:${callerId}`,
+						tag: `AnotherLeg:${callId}`,
 						callTimeout: 10,
 						callbackUrl: buildAbsoluteUrl(ctx, `/callCallback`),
 					});
@@ -244,7 +247,6 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 				await Promise.all(activeCalls.map((c: IActiveCall) => api.hangup(c.callId)));
 				break;
 		}
-		ctx.body = '';
 	});
 
 	router.post('/recordGreeting', async (ctx: IContext) => {
@@ -378,7 +380,7 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 		}
 		const req = ctx.req;
 		const stream = new SimpleReadable();
-		req.setTimeout(Number.MAX_VALUE, () => {});
+		req.setTimeout(Number.MAX_VALUE, () => { });
 		ctx.set('Cache-Control', 'no-cache');
 		ctx.set('Connection', 'keep-alive');
 		ctx.type = 'text/event-stream';
