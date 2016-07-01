@@ -198,6 +198,7 @@ test(`DELETE '/voiceMessages/:id' should delete voice message`, async (t) => {
 	});
 });
 
+/*
 test(`GET '/voiceMessagesStream should listen to server side events`, async (t) => {
 	await runWithServer(async (request, app) => {
 		let response = await request.login('voiceMessages4');
@@ -230,7 +231,7 @@ test(`GET '/voiceMessagesStream should fail for invalid token`, async (t) => {
 	});
 });
 
-test.only(`GET '/voiceMessagesStream should listen to server side events`, async (t) => {
+test.skip(`GET '/voiceMessagesStream should listen to server side events`, async (t) => {
 	await runWithServer(async (request, app) => {
 		let response = await request.login('voiceMessages4');
 		t.true(response.ok);
@@ -258,5 +259,19 @@ test.only(`GET '/voiceMessagesStream should listen to server side events`, async
 			}, 50);
 		});
 		t.true(sseCalled);
+	});
+}); */
+
+test(`POST '/recordGreeting' should make call callback`, async (t) => {
+	await runWithServer(async (request, app) => {
+		let response = await request.login('recordGreeting');
+		t.true(response.ok);
+		const stub = sinon.stub(app.api, 'createCall').returns(Promise.resolve('callId'));
+		const user = await models.user.findOne({ userName: 'recordGreeting' }).exec();
+		response = <Response><any>(await request.post(`/recordGreeting`).set('Authorization', `Bearer ${response.body.token}`));
+		t.true(response.ok);
+		t.true(stub.called);
+		t.is(stub.lastCall.args[0].from, '+1234567890');
+		t.is(stub.lastCall.args[0].to, 'test@test.net');
 	});
 });

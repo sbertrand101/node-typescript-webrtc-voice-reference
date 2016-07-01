@@ -248,11 +248,13 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 	});
 
 	router.post('/recordGreeting', async (ctx: IContext) => {
+		debug('Creating a call');
 		const callId = await api.createCall({
 			from: ctx.user.phoneNumber,
 			to: ctx.user.sipUri,
 			callbackUrl: buildAbsoluteUrl(ctx, '/recordCallback')
 		});
+		debug('Saving created call');
 		await models.activeCall.create({
 			user: ctx.user.id,
 			callId: callId,
