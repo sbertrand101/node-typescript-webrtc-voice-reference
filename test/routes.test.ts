@@ -159,7 +159,7 @@ test(`GET '/voiceMessages/:id/media' should return file content`, async (t) => {
 		let response = await request.login('voiceMessages2');
 		t.true(response.ok);
 		const user = await models.user.findOne({ userName: 'voiceMessages2' }).exec();
-		await models.voiceMailMessage.remove({user: user.id});
+		await models.voiceMailMessage.remove({ user: user.id });
 		const message = new models.voiceMailMessage({
 			startTime: '2016-06-30T10:00:00Z',
 			endTime: '2016-06-30T10:01:00Z',
@@ -188,7 +188,7 @@ test(`DELETE '/voiceMessages/:id' should delete voice message`, async (t) => {
 		let response = await request.login('voiceMessages3');
 		t.true(response.ok);
 		const user = await models.user.findOne({ userName: 'voiceMessages3' }).exec();
-		await models.voiceMailMessage.remove({user: user.id});
+		await models.voiceMailMessage.remove({ user: user.id });
 		const message = new models.voiceMailMessage({
 			startTime: '2016-06-30T10:00:00Z',
 			endTime: '2016-06-30T10:01:00Z',
@@ -243,11 +243,10 @@ test(`GET '/voiceMessagesStream should listen to server side events`, async (t) 
 		const user = await models.user.findOne({ userName: 'voiceMessages7' }).exec();
 		const token = await (<any>(jwt.sign)).promise(user.id, jwtToken, {});
 		let sseCalled = false;
-		class MockWritable extends Writable
-		{
+		class MockWritable extends Writable {
 			_write(chunk: any, encoding: string, callback: Function): void {
 				const text = chunk.toString();
-				if (text !== '\n'){
+				if (text !== '\n') {
 					t.is(text, 'id: id\ndata: {"id":"id","message":"message"}\n\n');
 				}
 				sseCalled = true;
@@ -262,7 +261,7 @@ test(`GET '/voiceMessagesStream should listen to server side events`, async (t) 
 				.set('Authorization', `Bearer ${response.body.token}`)
 				.pipe(stream);
 			setTimeout(() => {
-				PubSub.publish(user.id, {id: 'id', message: 'message'});
+				PubSub.publish(user.id, { id: 'id', message: 'message' });
 			}, 50);
 		});
 		t.true(sseCalled);
