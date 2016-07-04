@@ -5,7 +5,7 @@ import * as sinon from 'sinon';
 import {Readable, Writable} from 'stream';
 import * as jwt from 'jsonwebtoken';
 import * as PubSub from 'pubsub-js';
-import getRouter, {IContext, jwtToken, SimpleReadable, tonesURL} from '../src/routes';
+import getRouter, {IContext, jwtToken, SimpleReadable, tonesURL, beepURL} from '../src/routes';
 import {models} from '../src/index';
 
 SimpleReadable.prototype._read = function (size) {
@@ -399,5 +399,86 @@ test(`POST '/callCallback' should handle call for second leg`, async (t) => {
 		}));
 		t.true(response.ok);
 		t.true(stub1.called);
+	});
+});
+
+test(`POST '/callCallback' should handle ending of playback (after greeting)`, async (t) => {
+	await runWithServer(async (request, app, server) => {
+		const stub1 = sinon.stub(app.api, 'playAudioToCall')
+			.withArgs('callID', beepURL, false, 'Beep')
+			.returns(Promise.resolve());
+		const response = <Response><any>(await request.post(`/callCallback`).send({
+			callId: 'callID',
+			eventType: 'speak',
+			status: 'done',
+			tag: 'Greeting'
+		}));
+		t.true(response.ok);
+		t.true(stub1.called);
+	});
+});
+
+test(`POST '/callCallback' should handle ending of playback (after beep)`, async (t) => {
+	await runWithServer(async (request, app, server) => {
+		const stub1 = sinon.stub(app.api, 'updateCall')
+			.withArgs('callID', { recordingEnabled: true })
+			.returns(Promise.resolve());
+		const response = <Response><any>(await request.post(`/callCallback`).send({
+			callId: 'callID',
+			eventType: 'speak',
+			status: 'done',
+			tag: 'Beep'
+		}));
+		t.true(response.ok);
+		t.true(stub1.called);
+	});
+});
+
+test(`POST '/callCallback' should handle timeout (play default greeting) for second leg`, async (t) => {
+	await runWithServer(async (request, app, server) => {
+		const stub1 = sinon.stub(app.api, 'stopPlayAudioToCall')
+			.withArgs('tcallID')
+			.returns(Promise.resolve());
+		const stub2 = sinon.stub(app.api, 'speakSentenceToCall')
+			.withArgs('tcallID', 'Hello. Please leave a message after beep.', 'Greeting')
+			.returns(Promise.resolve());
+
+		const user = await createUser('tuser1');
+		await models.user.update({ _id: user.id }, { $set: { sipUri: 'sip:ttest@test.com', phoneNumber: '+1324567891' } });
+		await models.activeCall.remove({callId: 'tcallID'});
+		await models.activeCall.create({callId: 'tcallID', user: user.id});
+		const response = <Response><any>(await request.post(`/callCallback`).send({
+			callId: 'anotherCallID',
+			eventType: 'timeout',
+			tag: 'AnotherLeg:tcallID'
+		}));
+		t.true(response.ok);
+		t.true(stub1.called);
+		t.true(stub2.called);
+	});
+});
+
+test.only(`POST '/callCallback' should handle timeout (play user's greeting) for second leg`, async (t) => {
+	await runWithServer(async (request, app, server) => {
+		const stub1 = sinon.stub(app.api, 'stopPlayAudioToCall')
+			.withArgs('t2callID')
+			.returns(Promise.resolve());
+		const stub2 = sinon.stub(app.api, 'playAudioToCall')
+			.withArgs('t2callID', 'url', false, 'Greeting')
+			.returns(Promise.resolve());
+
+		const user = await createUser('tuser2');
+		await models.user.update({ _id: user.id }, { $set: { sipUri: 'sip:t2test@test.com', phoneNumber: '+1324567892', greetingUrl: 'url' } });
+		await models.activeCall.remove({callId: 't2callID'});
+		await models.activeCall.create({callId: 't2callID', user: user.id});
+		const response = <Response><any>(await request.post(`/callCallback`).send({
+			callId: 'anotherCallID',
+			eventType: 'timeout',
+			tag: 'AnotherLeg:t2callID'
+		}));
+		console.log(response.text);
+		t.true(response.ok);
+		t.true(stub1.called);
+		t.true(stub2.called);
 	});
 });

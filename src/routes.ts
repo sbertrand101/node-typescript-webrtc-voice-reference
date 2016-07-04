@@ -414,8 +414,10 @@ function getPrimaryCallId(tag: string): string {
 
 
 async function getUserForCall(callId: string, models: IModels): Promise<IUser> {
+	debug(`Get user for call ${callId}`);
 	const call = await models.activeCall.findOne({ callId }).populate('user').exec();
 	if (call && call.user) {
+		debug(`Found user ${call.user.id} for call ${callId}`);
 		return call.user;
 	}
 	return null;
@@ -433,12 +435,12 @@ async function getCallerId(models: IModels, phoneNumber: string): Promise<string
 
 async function playGreeting(api: ICatapultApi, callId: string, user: IUser) {
 	// Play greeting
-	if (user.greetingUrl === '') {
+	if (user.greetingUrl) {
+		debug(`Play user's greeting`);
+		await api.playAudioToCall(callId, user.greetingUrl, false, 'Greeting');
+	} else {
 		debug('Play default greeting');
 		await api.speakSentenceToCall(callId, 'Hello. Please leave a message after beep.', 'Greeting');
-	} else {
-		debug(`Play user's greeting`);
-		api.playAudioToCall(callId, user.greetingUrl, false, 'Greeting');
 	}
 }
 
