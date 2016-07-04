@@ -333,3 +333,71 @@ test(`POST '/callCallback' should handle incoming call`, async (t) => {
 		t.true(stub3.called);
 	});
 });
+
+test(`POST '/callCallback' should handle incoming call (from sip account)`, async (t) => {
+	await runWithServer(async (request, app, server) => {
+		const stub1 = sinon.stub(app.api, 'playAudioToCall')
+			.withArgs('callID', tonesURL, true, '')
+			.returns(Promise.resolve());
+		const stub2 = sinon.stub(app.api, 'createBridge')
+			.withArgs({
+				callIds: ['callID'],
+				bridgeAudio: true
+			})
+			.returns(Promise.resolve('bridgeId'));
+		const stub3 = sinon.stub(app.api, 'createCall')
+			.withArgs({
+				bridgeId: 'bridgeId',
+				from: '+1234567893',
+				to: 'sip:itest2@test.com',
+				tag: 'AnotherLeg:callID',
+				callTimeout: 10,
+				callbackUrl: `http://127.0.0.1:${server.address().port}/callCallback`
+			})
+			.returns(Promise.resolve('anotherCallId'));
+		const user = await createUser('iuser2');
+		await models.user.update({ _id: user.id }, { $set: { sipUri: 'sip:itest2@test.com', phoneNumber: '+1234567892' } });
+		const user2 = await createUser('iuser3');
+		await models.user.update({ _id: user2.id }, { $set: { sipUri: 'sip:itest3@test.com', phoneNumber: '+1234567893' } });
+
+		const response = <Response><any>(await request.post(`/callCallback`).send({
+			callId: 'callID',
+			eventType: 'answer',
+			from: 'sip:itest3@test.com',
+			to: '+1234567892'
+		}));
+		t.true(response.ok);
+		t.true(stub1.called);
+		t.true(stub2.called);
+		t.true(stub3.called);
+	});
+});
+
+test(`POST '/callCallback' should do nothing if user is not found`, async (t) => {
+	await runWithServer(async (request, app, server) => {
+		const response = <Response><any>(await request.post(`/callCallback`).send({
+			callId: 'callID',
+			eventType: 'answer',
+			from: '+1112583690',
+			to: '+1114567891'
+		}));
+		t.true(response.ok);
+	});
+});
+
+test(`POST '/callCallback' should handle call for second leg`, async (t) => {
+	await runWithServer(async (request, app, server) => {
+		const stub1 = sinon.stub(app.api, 'stopPlayAudioToCall')
+			.withArgs('callID')
+			.returns(Promise.resolve());
+		const response = <Response><any>(await request.post(`/callCallback`).send({
+			callId: 'anotherCallID',
+			eventType: 'answer',
+			from: '+1472583690',
+			to: '+1234567891',
+			tag: 'AnotherLeg:callID'
+		}));
+		t.true(response.ok);
+		t.true(stub1.called);
+	});
+});
