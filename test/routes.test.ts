@@ -519,23 +519,201 @@ test(`POST '/callCallback' should handle completed recording`, async (t) => {
 
 test(`POST '/callCallback' should handle hangup of completed calls`, async (t) => {
 		await runWithServer(async (request, app, server) => {
-			const user = await createUser('cuser1');
-			await models.activeCall.remove({ callId: 'ccallID' });
-			await models.activeCall.remove({ callId: 'ccallID1' });
-			await models.activeCall.remove({ callId: 'ccallID2' });
+		const user = await createUser('cuser1');
+		await models.activeCall.remove({ callId: 'ccallID' });
+		await models.activeCall.remove({ callId: 'ccallID1' });
+		await models.activeCall.remove({ callId: 'ccallID2' });
 
-			await models.activeCall.create({ callId: 'ccallID', bridgeId: 'bridgeID', user: user.id });
-			await models.activeCall.create({ callId: 'ccallID1', bridgeId: 'bridgeID', user: user.id });
-			await models.activeCall.create({ callId: 'ccallID2', bridgeId: 'bridgeID', user: user.id });
+		await models.activeCall.create({ callId: 'ccallID', bridgeId: 'bridgeID', user: user.id });
+		await models.activeCall.create({ callId: 'ccallID1', bridgeId: 'bridgeID', user: user.id });
+		await models.activeCall.create({ callId: 'ccallID2', bridgeId: 'bridgeID', user: user.id });
 
-			const stub1 = sinon.stub(app.api, 'hangup')
-				.withArgs('ccallID1').returns(Promise.resolve())
-				.withArgs('ccallID2').returns(Promise.resolve());
-			const response = <Response><any>(await request.post(`/callCallback`).send({
-				callId: 'ccallID',
-				eventType: 'hangup'
-			}));
-			t.true(response.ok);
-			t.true(stub1.called);
+		const stub1 = sinon.stub(app.api, 'hangup')
+			.withArgs('ccallID1').returns(Promise.resolve())
+			.withArgs('ccallID2').returns(Promise.resolve());
+		const response = <Response><any>(await request.post(`/callCallback`).send({
+			callId: 'ccallID',
+			eventType: 'hangup'
+		}));
+		t.true(response.ok);
+		t.true(stub1.called);
 		});
 });
+
+test(`POST '/recordCallback' should play voice menu on answer`, async (t) => {
+	await runWithServer(async (request, app) => {
+		const stub = sinon.stub(app.api, 'createGather').returns(Promise.resolve({
+			maxDigits: 1,
+			interDigitTimeout: 30,
+			prompt: {
+				sentence: 'Press 1 to listen to your current greeting. Press 2 to record new greeting. Press 3 to set greeting to default.'
+			},
+			tag: 'mainMenu'
+		}));
+		const response = <Response><any>(await request.post(`/recordCallback`).send({
+			eventType: 'answer'
+		}));
+		t.true(response.ok);
+		t.true(stub.called);
+	});
+});
+
+test(`POST '/recordCallback' should play greeting on press 1`, async (t) => {
+	await runWithServer(async (request, app) => {
+		const stub = sinon.stub(app.api, 'speakSentenceToCall')
+			.withArgs('rccallID', 'Hello. Please leave a message after beep.', 'Greeting')
+			.returns(Promise.resolve());
+		const user = await createUser('rcuser1');
+		await models.activeCall.remove({ callId: 'rccallID' });
+		await models.activeCall.create({ callId: 'rccallID', user: user.id });
+
+		const response = <Response><any>(await request.post(`/recordCallback`).send({
+			eventType: 'gather',
+			tag: 'mainMenu',
+			digits: '1',
+			callId: 'rccallID',
+			state: 'completed'
+		}));
+		t.true(response.ok);
+		t.true(stub.called);
+	});
+});
+
+test(`POST '/recordCallback' should start greeting recording on press 2`, async (t) => {
+	await runWithServer(async (request, app) => {
+		const stub = sinon.stub(app.api, 'speakSentenceToCall')
+			.withArgs('rccallID2', 'Say your greeting after beep. Press 0 to complete recording.', 'PlayBeep')
+			.returns(Promise.resolve());
+		const user = await createUser('rcuser2');
+		await models.activeCall.remove({ callId: 'rccallID2' });
+		await models.activeCall.create({ callId: 'rccallID2', user: user.id });
+
+		const response = <Response><any>(await request.post(`/recordCallback`).send({
+			eventType: 'gather',
+			tag: 'mainMenu',
+			digits: '2',
+			callId: 'rccallID2',
+			state: 'completed'
+		}));
+		t.true(response.ok);
+		t.true(stub.called);
+	});
+});
+
+test(`POST '/recordCallback' should reset greeting on press 3`, async (t) => {
+	await runWithServer(async (request, app) => {
+		const stub = sinon.stub(app.api, 'speakSentenceToCall')
+			.withArgs('rccallID3', 'Your greeting has been set to default.', 'PlayMenu')
+			.returns(Promise.resolve());
+		let user = await createUser('rcuser3');
+		await models.user.update({ _id: user.id }, { $set: { greetingUrl: 'url' } });
+		await models.activeCall.remove({ callId: 'rccallID3' });
+		await models.activeCall.create({ callId: 'rccallID3', user: user.id });
+		user = await models.user.findById(user.id.toString()).exec()
+		t.truthy(user.greetingUrl);
+		const response = <Response><any>(await request.post(`/recordCallback`).send({
+			eventType: 'gather',
+			tag: 'mainMenu',
+			digits: '3',
+			callId: 'rccallID3',
+			state: 'completed'
+		}));
+		t.true(response.ok);
+		t.true(stub.called);
+		user = await models.user.findById(user.id.toString()).exec()
+		t.falsy(user.greetingUrl);
+	});
+});
+
+test(`POST '/recordCallback' should write recording on complete`, async (t) => {
+	await runWithServer(async (request, app) => {
+		const stub = sinon.stub(app.api, 'speakSentenceToCall')
+			.withArgs('rccallID5', 'Your greeting has been saved.', 'PlayMenu')
+			.returns(Promise.resolve());
+		const stub1 = sinon.stub(app.api, 'getRecording')
+			.withArgs('recordingID')
+			.returns(Promise.resolve({
+				media: 'url'
+			}));
+		const stub2 = sinon.stub(app.api, 'getCall')
+			.withArgs('rccallID5')
+			.returns(Promise.resolve({
+				state: 'active'
+			}));
+		let user = await createUser('rcuser5');
+		await models.activeCall.remove({ callId: 'rccallID5' });
+		await models.activeCall.create({ callId: 'rccallID5', user: user.id });
+		const response = <Response><any>(await request.post(`/recordCallback`).send({
+			eventType: 'recording',
+			state: 'complete',
+			callId: 'rccallID5',
+			recordingId: 'recordingID'
+		}));
+		t.true(response.ok);
+		t.true(stub.called);
+		t.true(stub1.called);
+		t.true(stub2.called);
+		user = await models.user.findById(user.id.toString()).exec()
+		t.is(user.greetingUrl, 'url');
+	});
+});
+
+test(`POST '/recordCallback' should handle complete of speak (play beep)`, async (t) => {
+	await runWithServer(async (request, app) => {
+		const stub = sinon.stub(app.api, 'playAudioToCall')
+			.withArgs('rccallID6', beepURL, false, 'Beep')
+			.returns(Promise.resolve());
+		const response = <Response><any>(await request.post(`/recordCallback`).send({
+			eventType: 'speak',
+			tag: 'PlayBeep',
+			status: 'done',
+			callId: 'rccallID6'
+		}));
+		t.true(response.ok);
+		t.true(stub.called);
+	});
+});
+
+test(`POST '/recordCallback' should handle complete of speak (play greeting)`, async (t) => {
+	await runWithServer(async (request, app) => {
+		const stub = sinon.stub(app.api, 'updateCall')
+			.withArgs('rccallID7', { recordingEnabled: true })
+			.returns(Promise.resolve());
+		const stub1 = sinon.stub(app.api, 'createGather')
+			.withArgs('rccallID7', {
+								maxDigits: 1,
+								interDigitTimeout: 30,
+								tag: 'GreetingRecording'
+			})
+			.returns(Promise.resolve());
+		const response = <Response><any>(await request.post(`/recordCallback`).send({
+			eventType: 'speak',
+			tag: 'Beep',
+			status: 'done',
+			callId: 'rccallID7'
+		}));
+		t.true(response.ok);
+		t.true(stub.called);
+	});
+});
+
+test(`POST '/recordCallback' should handle complete of speak (default: play voice menu)`, async (t) => {
+	await runWithServer(async (request, app) => {
+		const stub = sinon.stub(app.api, 'createGather').returns(Promise.resolve({
+			maxDigits: 1,
+			interDigitTimeout: 30,
+			prompt: {
+				sentence: 'Press 1 to listen to your current greeting. Press 2 to record new greeting. Press 3 to set greeting to default.'
+			},
+			tag: 'mainMenu'
+		}));
+		const response = <Response><any>(await request.post(`/recordCallback`).send({
+			eventType: 'speak',
+			status: 'done',
+			callId: 'rccallID8'
+		}));
+		t.true(response.ok);
+		t.true(stub.called);
+	});
+});
+

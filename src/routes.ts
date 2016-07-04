@@ -20,7 +20,7 @@ export const jwtToken = '42VFYo1fiIaFa1nguHI2pmulRo2sKyf-';
 
 const koaJwt = require('koa-jwt')({
 	secret: jwtToken
-}).unless({ path: [/^\/public/, /^\/login/, /^\/refreshToken/, /^\/register/, /^\/callCallback/] });
+}).unless({ path: [/^\/public/, /^\/login/, /^\/refreshToken/, /^\/register/, /^\/(\w+)Callback/] });
 
 export interface IContext extends Router.IRouterContext {
 	user: IUser;
@@ -268,7 +268,7 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 
 	router.post('/recordCallback', async (ctx: IContext) => {
 		const form = (<any>(ctx.request)).body;
-		debug('Catapult Event for greeting record: ${ctx.request.url}');
+		debug(`Catapult Event for greeting record: %j`, form);
 		const user = await getUserForCall(form.callId, models);
 		const mainMenu = async () => {
 			await api.createGather({
@@ -286,6 +286,7 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 				debug('Play voice menu');
 				return await mainMenu();
 			case 'gather':
+				debug('Gather %j', form);
 				if (form.state === 'completed') {
 					switch (form.tag) {
 						case 'mainMenu': {
@@ -298,7 +299,7 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 									return await api.speakSentenceToCall(form.callId, 'Say your greeting after beep. Press 0 to complete recording.', 'PlayBeep');
 								case '3':
 									debug('Reset greeting');
-									await models.user.update({ _id: user.id }, { greetingUrl: '' });
+									await models.user.update({ _id: user.id }, {$set: { greetingUrl: '' }});
 									return await api.speakSentenceToCall(form.callId, 'Your greeting has been set to default.', 'PlayMenu');
 							}
 						}
@@ -314,8 +315,7 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 			case `recording`:
 				if (form.state === 'complete') {
 					const recording = await api.getRecording(form.recordingId);
-					ctx.user.greetingUrl = recording.media;
-					await ctx.user.save();
+					await models.user.update({_id: user.id}, {$set: {greetingUrl: recording.media}});
 					const call = await api.getCall(form.callId);
 					if (call.state === 'active') {
 						return await api.speakSentenceToCall(form.callId, 'Your greeting has been saved.', 'PlayMenu');
