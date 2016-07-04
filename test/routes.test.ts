@@ -445,8 +445,8 @@ test(`POST '/callCallback' should handle timeout (play default greeting) for sec
 
 		const user = await createUser('tuser1');
 		await models.user.update({ _id: user.id }, { $set: { sipUri: 'sip:ttest@test.com', phoneNumber: '+1324567891' } });
-		await models.activeCall.remove({callId: 'tcallID'});
-		await models.activeCall.create({callId: 'tcallID', user: user.id});
+		await models.activeCall.remove({ callId: 'tcallID' });
+		await models.activeCall.create({ callId: 'tcallID', user: user.id });
 		const response = <Response><any>(await request.post(`/callCallback`).send({
 			callId: 'anotherCallID',
 			eventType: 'timeout',
@@ -458,7 +458,7 @@ test(`POST '/callCallback' should handle timeout (play default greeting) for sec
 	});
 });
 
-test.only(`POST '/callCallback' should handle timeout (play user's greeting) for second leg`, async (t) => {
+test(`POST '/callCallback' should handle timeout (play user's greeting) for second leg`, async (t) => {
 	await runWithServer(async (request, app, server) => {
 		const stub1 = sinon.stub(app.api, 'stopPlayAudioToCall')
 			.withArgs('t2callID')
@@ -469,16 +469,73 @@ test.only(`POST '/callCallback' should handle timeout (play user's greeting) for
 
 		const user = await createUser('tuser2');
 		await models.user.update({ _id: user.id }, { $set: { sipUri: 'sip:t2test@test.com', phoneNumber: '+1324567892', greetingUrl: 'url' } });
-		await models.activeCall.remove({callId: 't2callID'});
-		await models.activeCall.create({callId: 't2callID', user: user.id});
+		await models.activeCall.remove({ callId: 't2callID' });
+		await models.activeCall.create({ callId: 't2callID', user: user.id });
 		const response = <Response><any>(await request.post(`/callCallback`).send({
 			callId: 'anotherCallID',
 			eventType: 'timeout',
 			tag: 'AnotherLeg:t2callID'
 		}));
-		console.log(response.text);
 		t.true(response.ok);
 		t.true(stub1.called);
 		t.true(stub2.called);
 	});
+});
+
+test(`POST '/callCallback' should handle completed recording`, async (t) => {
+		await runWithServer(async (request, app, server) => {
+		const user = await createUser('ruser1');
+
+		const stub1 = sinon.stub(app.api, 'getRecording')
+			.withArgs('recordingID')
+			.returns(Promise.resolve({
+				media: 'url',
+				startTime: '2016-07-04T10:40:00Z',
+				endTime: '2016-07-04T10:41:00Z',
+			}));
+		const stub2 = sinon.stub(app.api, 'getCall')
+			.withArgs('rcallID')
+			.returns(Promise.resolve({ from: '+1234567891' }));
+
+		const stub3 = sinon.stub(PubSub, 'publish');
+		try {
+			await models.activeCall.remove({ callId: 'rcallID' });
+			await models.activeCall.create({ callId: 'rcallID', user: user.id });
+			const response = <Response><any>(await request.post(`/callCallback`).send({
+				callId: 'rcallID',
+				eventType: 'recording',
+				state: 'complete',
+				recordingId: 'recordingID'
+			}));
+			t.true(response.ok);
+			t.true(stub1.called);
+			t.true(stub2.called);
+			t.true(stub3.called);
+		} finally {
+			stub3.restore();
+		}
+		});
+});
+
+test(`POST '/callCallback' should handle hangup of completed calls`, async (t) => {
+		await runWithServer(async (request, app, server) => {
+			const user = await createUser('cuser1');
+			await models.activeCall.remove({ callId: 'ccallID' });
+			await models.activeCall.remove({ callId: 'ccallID1' });
+			await models.activeCall.remove({ callId: 'ccallID2' });
+
+			await models.activeCall.create({ callId: 'ccallID', bridgeId: 'bridgeID', user: user.id });
+			await models.activeCall.create({ callId: 'ccallID1', bridgeId: 'bridgeID', user: user.id });
+			await models.activeCall.create({ callId: 'ccallID2', bridgeId: 'bridgeID', user: user.id });
+
+			const stub1 = sinon.stub(app.api, 'hangup')
+				.withArgs('ccallID1').returns(Promise.resolve())
+				.withArgs('ccallID2').returns(Promise.resolve());
+			const response = <Response><any>(await request.post(`/callCallback`).send({
+				callId: 'ccallID',
+				eventType: 'hangup'
+			}));
+			t.true(response.ok);
+			t.true(stub1.called);
+		});
 });

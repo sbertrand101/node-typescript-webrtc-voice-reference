@@ -210,38 +210,38 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 				}
 			case 'recording':
 				{
-					if (form.state === 'complete') {
+					if (form.state === 'complete' && user) {
 						// Voice message has been recorded. Save it into db.
 						debug('Get recorded voice message info');
 						const recording = await api.getRecording(form.recordingId);
 						const call = await api.getCall(callId);
-						if (!user) {
-							debug('Saving recorded voice message to db');
-							const message = new models.voiceMailMessage({
-								mediaUrl: recording.media,
-								startTime: recording.startTime,
-								endTime: recording.endTime,
-								userId: user.id,
-								from: await getCallerId(models, call.from),
-							});
-							await message.save();
+						debug('Saving recorded voice message to db');
+						const message = new models.voiceMailMessage({
+							mediaUrl: recording.media,
+							startTime: new Date(recording.startTime),
+							endTime: new Date(recording.endTime),
+							user: user.id,
+							from: await getCallerId(models, call.from),
+						});
+						await message.save();
 
-							// send notification about new voice mail message
-							debug(`Publish SSE notification (for user ${user.userName})`);
-							PubSub.publish(user.id.toString(), message.toJSON());
-						}
+						// send notification about new voice mail message
+						debug(`Publish SSE notification (for user ${user.userName})`);
+						PubSub.publish(user.id.toString(), message.toJSON());
 					}
+					break;
 				}
 			case 'hangup':
 				callId = form.callId;
 				debug(`Hangup ${callId}`);
 				// look for bridge data for call first
 				const activeCall = await models.activeCall.findOne({ callId }).exec();
-				if (!activeCall || activeCall.bridgeId === '') {
+				if (!activeCall || !activeCall.bridgeId) {
 					break;
 				}
 				// then look for other calls in the bridge
-				const activeCalls = await models.activeCall.find({ bridgeId: activeCall.bridgeId, $not: { callId } }).exec();
+				debug(`Look for other calls`);
+				const activeCalls = await models.activeCall.find({ bridgeId: activeCall.bridgeId, callId: {$ne: callId } }).exec();
 
 				debug(`Hangup other ${activeCalls.length} calls`);
 				await Promise.all(activeCalls.map((c: IActiveCall) => api.hangup(c.callId)));
