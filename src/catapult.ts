@@ -53,7 +53,6 @@ export class CatapultApi implements ICatapultApi {
 	}
 
 	createPhoneNumber(areaCode: string): Promise<string> {
-		console.log('Here');
 		throw new Error('Not implemented yet');
 	}
 	createSIPAccount(): Promise<ISIPAccount> {
