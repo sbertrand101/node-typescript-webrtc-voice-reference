@@ -609,7 +609,7 @@ test(`POST '/recordCallback' should reset greeting on press 3`, async (t) => {
 		await models.user.update({ _id: user.id }, { $set: { greetingUrl: 'url' } });
 		await models.activeCall.remove({ callId: 'rccallID3' });
 		await models.activeCall.create({ callId: 'rccallID3', user: user.id });
-		user = await models.user.findById(user.id.toString()).exec()
+		user = await models.user.findById(user.id.toString()).exec();
 		t.truthy(user.greetingUrl);
 		const response = <Response><any>(await request.post(`/recordCallback`).send({
 			eventType: 'gather',
@@ -620,7 +620,7 @@ test(`POST '/recordCallback' should reset greeting on press 3`, async (t) => {
 		}));
 		t.true(response.ok);
 		t.true(stub.called);
-		user = await models.user.findById(user.id.toString()).exec()
+		user = await models.user.findById(user.id.toString()).exec();
 		t.falsy(user.greetingUrl);
 	});
 });
@@ -653,7 +653,7 @@ test(`POST '/recordCallback' should write recording on complete`, async (t) => {
 		t.true(stub.called);
 		t.true(stub1.called);
 		t.true(stub2.called);
-		user = await models.user.findById(user.id.toString()).exec()
+		user = await models.user.findById(user.id.toString()).exec();
 		t.is(user.greetingUrl, 'url');
 	});
 });
