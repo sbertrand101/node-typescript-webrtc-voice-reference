@@ -10,7 +10,7 @@ import staticFilesOptions from './staticFilesOptions';
 
 const debug = debugFactory('index');
 
-function getDatabaseUrl(): string {
+export function getDatabaseUrl(): string {
 	const env = process.env;
 	// Docker support
 	if (env.MONGO_PORT_27017_TCP_ADDR && env.MONGO_PORT_27017_TCP_PORT) {
@@ -28,13 +28,8 @@ function getDatabaseUrl(): string {
 }
 
 const mongoose = new Mongoose();
-	(<any>mongoose).Promise = global.Promise;
-	mongoose.connect(getDatabaseUrl(), (err: any) => {
-		if (err) {
-			console.error(`Error on connecting to DB: ${err.message}`);
-			process.exit(1);
-		}
-	});
+(<any>mongoose).Promise = global.Promise;
+mongoose.connect(getDatabaseUrl());
 
 export const models = getModels(mongoose);
 
