@@ -71,6 +71,24 @@ test(`POST '/register' should register new user`, async (t) => {
 	});
 });
 
+test(`POST '/register' should fail if user exists already`, async (t) => {
+	await runWithServer(async (request, app) => {
+		await models.user.remove({ userName: 'register11' });
+		const user = new models.user({
+			userName: 'register11',
+			areaCode: '910',
+			phoneNumber: '+1234567811',
+			endpointId: 'endpointId',
+			sipUri: 'test@test.net',
+			sipPassword: '123456',
+		});
+		await user.setPassword('000000');
+		await user.save();
+		const response = <Response><any>(await request.post('/register').send({ userName: 'register11', password: '123456', repeatPassword: '123456', areaCode: '910' }));
+		t.false(response.ok);
+	});
+});
+
 test(`POST '/register' should fail if required fields missing`, async (t) => {
 	await runWithServer(async (request, app) => {
 		await models.user.remove({ userName: 'register2' });
@@ -181,6 +199,28 @@ test(`GET '/voiceMessages/:id/media' should return file content`, async (t) => {
 	});
 });
 
+test(`GET '/voiceMessages/:id/media' should return 404 for non-existing item`, async (t) => {
+	await runWithServer(async (request, app) => {
+		let response = await request.login('voiceMessages21');
+		t.true(response.ok);
+		const user = await models.user.findOne({ userName: 'voiceMessages21' }).exec();
+		await models.voiceMailMessage.remove({ user: user.id });
+		const message = new models.voiceMailMessage({
+			startTime: '2016-06-30T10:00:00Z',
+			endTime: '2016-06-30T10:01:00Z',
+			mediaUrl: 'http://loclahost/file1',
+			from: 'fr1',
+			user: user.id
+		});
+		await message.save();
+		const id = message.id;
+		await message.remove();
+		response = <Response><any>(await request.get(`/voiceMessages/${id}/media`).set('Authorization', `Bearer ${response.body.token}`));
+		t.false(response.ok);
+	});
+});
+
+
 test(`DELETE '/voiceMessages/:id' should delete voice message`, async (t) => {
 	await runWithServer(async (request, app) => {
 		let response = await request.login('voiceMessages3');
@@ -202,7 +242,7 @@ test(`DELETE '/voiceMessages/:id' should delete voice message`, async (t) => {
 	});
 });
 
-test(`GET '/voiceMessagesStream should listen to server side events`, async (t) => {
+test.serial(`GET '/voiceMessagesStream should listen to server side events`, async (t) => {
 	await runWithServer(async (request, app, server) => {
 		let response = await request.login('voiceMessages4');
 		t.true(response.ok);
@@ -214,7 +254,7 @@ test(`GET '/voiceMessagesStream should listen to server side events`, async (t) 
 	});
 });
 
-test(`GET '/voiceMessagesStream should fail for missing token`, async (t) => {
+test.serial(`GET '/voiceMessagesStream should fail for missing token`, async (t) => {
 	await runWithServer(async (request, app) => {
 		let response = await request.login('voiceMessages5');
 		t.true(response.ok);
@@ -224,7 +264,7 @@ test(`GET '/voiceMessagesStream should fail for missing token`, async (t) => {
 	});
 });
 
-test(`GET '/voiceMessagesStream should fail for invalid token`, async (t) => {
+test.serial(`GET '/voiceMessagesStream should fail for invalid token`, async (t) => {
 	await runWithServer(async (request, app) => {
 		let response = await request.login('voiceMessages6');
 		t.true(response.ok);
@@ -234,7 +274,7 @@ test(`GET '/voiceMessagesStream should fail for invalid token`, async (t) => {
 	});
 });
 
-test(`GET '/voiceMessagesStream should listen to server side events`, async (t) => {
+test.serial(`GET '/voiceMessagesStream should listen to server side events`, async (t) => {
 	await runWithServer(async (request, app) => {
 		let response = await request.login('voiceMessages7');
 		t.true(response.ok);
@@ -263,6 +303,17 @@ test(`GET '/voiceMessagesStream should listen to server side events`, async (t) 
 			}, 50);
 		});
 		t.true(sseCalled);
+	});
+});
+
+test.serial(`GET '/voiceMessagesStream should fail for non-exists user`, async (t) => {
+	await runWithServer(async (request, app, server) => {
+		const user = await createUser('voiceMessages8');
+		const id = user.id;
+		await user.remove();
+		const token = await (<any>(jwt.sign)).promise(id, jwtToken, {});
+		const response = <Response><any>(await request.get(`/voiceMessagesStream?token=${token}`).set('Authorization', `Bearer ${token}`));
+		t.false(response.ok);
 	});
 });
 
@@ -622,6 +673,23 @@ test(`POST '/recordCallback' should reset greeting on press 3`, async (t) => {
 		t.true(stub.called);
 		user = await models.user.findById(user.id.toString()).exec();
 		t.falsy(user.greetingUrl);
+	});
+});
+
+test(`POST '/recordCallback' should stop recording on 0`, async (t) => {
+	await runWithServer(async (request, app) => {
+		const stub = sinon.stub(app.api, 'updateCall')
+			.withArgs('rccallID3', { recordingEnabled: false })
+			.returns(Promise.resolve());
+		const response = <Response><any>(await request.post(`/recordCallback`).send({
+			eventType: 'gather',
+			tag: 'GreetingRecording',
+			digits: '0',
+			callId: 'rccallID3',
+			state: 'completed'
+		}));
+		t.true(response.ok);
+		t.true(stub.called);
 	});
 });
 
