@@ -86,7 +86,7 @@ export class MockCatapultApi implements ICatapultApi {
 		throw new Error('Not implemented');
 	}
 
-	updateCall(callId: string, data: any): Promise<string> {
+	updateCall(callId: string, data: any): Promise<void> {
 		throw new Error('Not implemented');
 	}
 

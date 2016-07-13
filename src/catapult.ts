@@ -1,6 +1,7 @@
 import {IContext} from './routes';
 import * as url from 'url';
-// import * as catapult from 'node-bandwidth';
+
+const CatapultClient = require('node-bandwidth');
 
 export interface ICatapultApi {
 	createPhoneNumber(areaCode: string): Promise<string>;
@@ -9,7 +10,7 @@ export interface ICatapultApi {
 	createBridge(data: any): Promise<string>;
 	createCall(data: any): Promise<string>;
 	createGather(data: any): Promise<string>;
-	updateCall(callId: string, data: any): Promise<string>;
+	updateCall(callId: string, data: any): Promise<void>;
 	stopPlayAudioToCall(callId: string): Promise<void>;
 	playAudioToCall(callId: string, tonesURL: string, loop: boolean, tag: string): Promise<void>;
 	transferCall(to: string, callerId: string): Promise<string>;
@@ -50,7 +51,11 @@ export interface IMediaFile {
 }
 
 export class CatapultApi implements ICatapultApi {
+
+	private catapult: any;
+
 	constructor(private userId: string, private apiToken: string, private apiSecret: string) {
+		this.catapult = new CatapultClient({userId, apiToken, apiSecret});
 	}
 
 	createPhoneNumber(areaCode: string): Promise<string> {
@@ -76,8 +81,8 @@ export class CatapultApi implements ICatapultApi {
 		throw new Error('Not implemented yet');
 	}
 
-	updateCall(callId: string, data: any): Promise<string> {
-		throw new Error('Not implemented yet');
+	updateCall(callId: string, data: any): Promise<void> {
+		return this.catapult.Call.update(callId, data);
 	}
 
 	stopPlayAudioToCall(callId: string): Promise<void> {
@@ -105,7 +110,7 @@ export class CatapultApi implements ICatapultApi {
 	}
 
 	hangup(callId: string): Promise<void> {
-		throw new Error('Not implemented yet');
+		return this.catapult.Call.update(callId, {state: 'completed'});
 	}
 
 	downloadMediaFile(name: string): Promise<IMediaFile> {

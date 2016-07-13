@@ -21,6 +21,7 @@
     "moment": "2.13.0",
     "mongoose": "4.5.1",
     "promisify-patch": "1.0.10",
+		"node-bandwidth": "bandwidthcom/node-bandwidth#2.0-preview",
     "pubsub-js": "1.5.3"
   },
   "devDependencies": {
