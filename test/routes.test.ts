@@ -65,6 +65,7 @@ test(`POST '/register' should register new user`, async (t) => {
 		const response = <Response><any>(await request.post('/register').send({ userName: 'register1', password: '123456', repeatPassword: '123456', areaCode: '910' }));
 		t.true(response.ok);
 		t.true(stub1.called);
+		t.is(stub2.lastCall.args[1], '910');
 		t.true(stub2.called);
 		const user = await models.user.findOne({ userName: 'register1' }).exec();
 		t.truthy(user);

@@ -20,9 +20,10 @@
     "koa-static": "3.0.0",
     "moment": "2.13.0",
     "mongoose": "4.5.1",
+    "node-bandwidth": "bandwidthcom/node-bandwidth#2.0-preview",
     "promisify-patch": "1.0.10",
-		"node-bandwidth": "bandwidthcom/node-bandwidth#2.0-preview",
-    "pubsub-js": "1.5.3"
+    "pubsub-js": "1.5.3",
+    "randomstring": "1.1.5"
   },
   "devDependencies": {
     "ava": "0.15.2",
@@ -46,7 +47,7 @@
     "typings": "typings install",
     "ava": "cross-env NODE_ENV=test DATABASE_URL=mongodb://localhost/test_voice_app ava",
     "test": "npm run make && npm run ava",
-		"test:coverage": "cross-env NODE_ENV=test DATABASE_URL=mongodb://localhost/test_voice_app nyc ava --timeout=2m",
+    "test:coverage": "cross-env NODE_ENV=test DATABASE_URL=mongodb://localhost/test_voice_app nyc ava --timeout=2m",
     "test:coverage-html": "npm run test:coverage && nyc report --reporter=html"
   },
   "repository": {

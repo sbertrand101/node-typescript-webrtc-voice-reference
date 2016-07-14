@@ -63,14 +63,14 @@ export function createContext(): IContext {
 
 export class MockCatapultApi implements ICatapultApi {
 
-	createPhoneNumber(areaCode: string): Promise<string> {
+	createPhoneNumber(ctx: IContext, areaCode: string): Promise<string> {
 		throw new Error('Not implemented');
 	}
-	createSIPAccount(): Promise<ISIPAccount> {
+	createSIPAccount(ctx: IContext): Promise<ISIPAccount> {
 		throw new Error('Not implemented');
 	}
 
-	createSIPAuthToken(endpointId: string): Promise<ISIPAuthToken> {
+	createSIPAuthToken(ctx: IContext, endpointId: string): Promise<ISIPAuthToken> {
 		throw new Error('Not implemented');
 	}
 
@@ -82,7 +82,7 @@ export class MockCatapultApi implements ICatapultApi {
 		throw new Error('Not implemented');
 	}
 
-	createGather(data: any): Promise<string> {
+	createGather(callId: string, data: any): Promise<string> {
 		throw new Error('Not implemented');
 	}
 
