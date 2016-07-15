@@ -111,19 +111,19 @@ export class CatapultApi implements ICatapultApi {
 	}
 
 	async stopPlayAudioToCall(callId: string): Promise<void> {
-		await this.catapult.Call.playAudio(callId, '');
+		await this.catapult.Call.playAudioAdvanced(callId, { fileUrl: '' });
 	}
 
 	async playAudioToCall(callId: string, url: string, loop: boolean, tag: string): Promise<void> {
-		await this.catapult.Call.playAudio(callId, url, { tag, loopEnabled: loop });
+		await this.catapult.Call.playAudioAdvanced(callId, { fileUrl: url, tag, loopEnabled: loop });
 	}
 
-	transferCall(to: string, callerId: string): Promise<string> {
-		throw new Error('Not implemented yet');
+	async transferCall(to: string, callerId: string): Promise<string> {
+		return (await this.catapult.Call.transfer({transferTo: to, transferCallerId: callerId})).id;
 	}
 
 	async speakSentenceToCall(callId: string, text: string, tag: string): Promise<void> {
-		await this.catapult.Call.speakSentence(callId, text, { tag });
+		await this.catapult.Call.playAudioAdvanced(callId, { sentence: text,  tag });
 	}
 
 	async getCall(callId: string): Promise<ICall> {
@@ -138,8 +138,8 @@ export class CatapultApi implements ICatapultApi {
 		return this.catapult.Call.update(callId, { state: 'completed' });
 	}
 
-	downloadMediaFile(name: string): Promise<IMediaFile> {
-		throw new Error('Not implemented yet');
+	async downloadMediaFile(name: string): Promise<IMediaFile> {
+		return <IMediaFile>(await this.catapult.Media.download(name));
 	}
 
 	private async getApplicationId(ctx: IContext): Promise<string> {
