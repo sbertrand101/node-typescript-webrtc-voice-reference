@@ -65,7 +65,7 @@ export class CatapultApi implements ICatapultApi {
 
 	async createPhoneNumber(ctx: IContext, areaCode: string): Promise<string> {
 		const applicationId = await this.getApplicationId(ctx);
-		const numbers = await this.catapult.AvailableNumber.listAndOrder('local', { areaCode, quantity: 1 });
+		const numbers = await this.catapult.AvailableNumber.searchAndOrder('local', { areaCode, quantity: 1 });
 		await this.catapult.PhoneNumber.update(numbers[0].id, { applicationId });
 		return numbers[0].number;
 	}
@@ -169,7 +169,7 @@ export class CatapultApi implements ICatapultApi {
 			domainInfo.id = domain.id;
 			domainInfo.name = domain.name;
 			return Object.assign(<IDomainInfo>{}, domainInfo);
-		}
+		};
 		if (domainInfo.id) {
 			return Object.assign(<IDomainInfo>{}, domainInfo);
 		}
