@@ -98,7 +98,7 @@ export class MockCatapultApi implements ICatapultApi {
 		throw new Error('Not implemented');
 	}
 
-	transferCall(to: string, callerId: string): Promise<string> {
+	transferCall(callId: string, to: string, callerId: string): Promise<string> {
 		throw new Error('Not implemented');
 	}
 

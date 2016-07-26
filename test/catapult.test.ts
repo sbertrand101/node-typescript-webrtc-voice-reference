@@ -14,12 +14,13 @@ test(`buildAbsoluteUrl() should build right absolute url`, async (t) => {
 
 test.skip(`CatapultApi#createPhoneNumber should search and register a phone number`, async (t) => {
 	const api = createCatapultApi();
+	const ctx = createContext();
 	nock(baseUrl, authHeaders).post('/v1/availableNumbers/local?areaCode=910&quantity=1', {}).reply(201, [{
 		number: '+1234567890',
 		price: '0.60',
 		location: 'https://.../v1/users/.../phoneNumbers/numberId'
 	}]);
-	const phoneNumber = await api.createPhoneNumber('910');
+	const phoneNumber = await api.createPhoneNumber(ctx, '910');
 	t.is(phoneNumber, '+1234567890');
 });
 

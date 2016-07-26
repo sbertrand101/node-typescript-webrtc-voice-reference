@@ -82,9 +82,9 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 		await user.setPassword(body.password);
 
 		debug(`Reserving phone number for area code ${body.areaCode}`);
-		const phoneNumber = await api.createPhoneNumber(body.areaCode);
+		const phoneNumber = await api.createPhoneNumber(ctx, body.areaCode);
 		debug('Creating SIP account');
-		const sipAccount = await api.createSIPAccount();
+		const sipAccount = await api.createSIPAccount(ctx);
 		user.phoneNumber = phoneNumber;
 		user.sipUri = sipAccount.uri;
 		user.sipPassword = sipAccount.password;
@@ -95,7 +95,7 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 
 	router.get('/sipData', async (ctx: IContext) => {
 		debug('Get SIP data');
-		const token = await api.createSIPAuthToken(ctx.user.endpointId);
+		const token = await api.createSIPAuthToken(ctx, ctx.user.endpointId);
 		debug('Return SIP data as JSON');
 		ctx.body = {
 			phoneNumber: ctx.user.phoneNumber,
@@ -177,7 +177,7 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 				}
 				if (from === user.sipUri) {
 					debug(`Transfering outgoing call to  ${to}`);
-					await api.transferCall(to, user.phoneNumber);
+					await api.transferCall(callId, to, user.phoneNumber);
 					return;
 				}
 				break;
@@ -271,7 +271,7 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 		debug(`Catapult Event for greeting record: %j`, form);
 		const user = await getUserForCall(form.callId, models);
 		const mainMenu = async () => {
-			await api.createGather({
+			await api.createGather(form.callId, {
 				maxDigits: 1,
 				interDigitTimeout: 30,
 				prompt: {
@@ -333,7 +333,7 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 							// after beep srart voice message recording
 							debug('Start greeting recording');
 							await api.updateCall(form.callId, { recordingEnabled: true });
-							await api.createGather({
+							await api.createGather(form.callId, {
 								maxDigits: 1,
 								interDigitTimeout: 30,
 								tag: 'GreetingRecording'
