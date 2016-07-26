@@ -20,7 +20,7 @@ export const jwtToken = '42VFYo1fiIaFa1nguHI2pmulRo2sKyf-';
 
 const koaJwt = require('koa-jwt')({
 	secret: jwtToken
-}).unless({ path: [/^\/public/, /^\/login/, /^\/refreshToken/, /^\/register/, /^\/(\w+)Callback/] });
+}).unless({ path: [/^\/public/, /^\/login/, /^\/register/, /^\/(\w+)Callback/] });
 
 export interface IContext extends Router.IRouterContext {
 	user: IUser;
@@ -51,6 +51,15 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 		}
 	});
 
+	const generateToken = async (user: IUser) => {
+		const token = await (<any>(jwt.sign)).promise(user.id, jwtToken, {});
+		return { token, expire: moment().add(30, 'd').toISOString() };
+	};
+
+	router.get('/refreshToken', async (ctx: IContext) => {
+		ctx.body = await generateToken(ctx.user);
+	});
+
 	router.post('/login', async (ctx: IContext) => {
 		const body = (<any>ctx.request).body;
 		if (!body.userName || !body.password) {
@@ -62,7 +71,7 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 		}
 		if (await user.comparePassword(body.password)) {
 			const token = await (<any>(jwt.sign)).promise(user.id, jwtToken, {});
-			ctx.body = { token, expire: moment().add(30, 'd').toISOString() };
+			ctx.body = await generateToken(user);
 		}
 
 	});

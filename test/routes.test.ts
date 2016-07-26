@@ -110,6 +110,16 @@ test(`POST '/register' should fail if passwords are mismatched `, async (t) => {
 	});
 });
 
+test(`GET '/refreshToken' should refresh auth token`, async (t) => {
+	await runWithServer(async (request, app) => {
+		let response = await request.login('refreshToken1');
+		t.true(response.ok);
+		response = <Response><any>(await request.get('/refreshToken').set('Authorization', `Bearer ${response.body.token}`));
+		t.true(response.ok);
+		t.truthy(response.body.token);
+	});
+});
+
 test(`GET '/sipData' should return sip auth data for user`, async (t) => {
 	await runWithServer(async (request, app) => {
 		const clock = sinon.useFakeTimers();
@@ -246,6 +256,7 @@ test(`DELETE '/voiceMessages/:id' should delete voice message`, async (t) => {
 test.serial(`GET '/voiceMessagesStream should listen to server side events`, async (t) => {
 	await runWithServer(async (request, app, server) => {
 		let response = await request.login('voiceMessages4');
+		console.log(response.text);
 		t.true(response.ok);
 		const user = await models.user.findOne({ userName: 'voiceMessages4' }).exec();
 		const token = await (<any>(jwt.sign)).promise(user.id, jwtToken, {});
