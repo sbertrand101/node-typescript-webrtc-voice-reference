@@ -60,12 +60,12 @@ test(`POST '/login' should fail if any auth data missing`, async () => {
 test(`POST '/register' should register new user`, async (t) => {
 	await runWithServer(async (request, app) => {
 		await models.user.remove({ userName: 'register1' });
-		const stub1 = sinon.stub(app.api, 'createPhoneNumber').withArgs('910').returns(Promise.resolve('+1234567890'));
+		const stub1 = sinon.stub(app.api, 'createPhoneNumber').returns(Promise.resolve('+1234567890'));
 		const stub2 = sinon.stub(app.api, 'createSIPAccount').returns(Promise.resolve({ endpointId: 'endpointId', uri: 'uri', password: 'password' }));
 		const response = <Response><any>(await request.post('/register').send({ userName: 'register1', password: '123456', repeatPassword: '123456', areaCode: '910' }));
 		t.true(response.ok);
 		t.true(stub1.called);
-		t.is(stub2.lastCall.args[1], '910');
+		t.is(stub1.lastCall.args[1], '910');
 		t.true(stub2.called);
 		const user = await models.user.findOne({ userName: 'register1' }).exec();
 		t.truthy(user);
@@ -125,7 +125,7 @@ test(`GET '/sipData' should return sip auth data for user`, async (t) => {
 		const clock = sinon.useFakeTimers();
 		let response = await request.login('sipData1');
 		t.true(response.ok);
-		const stub1 = sinon.stub(app.api, 'createSIPAuthToken').withArgs('endpointId').returns(Promise.resolve({
+		const stub1 = sinon.stub(app.api, 'createSIPAuthToken').returns(Promise.resolve({
 			token: 'token',
 			expires: 3600
 		}));
@@ -133,6 +133,7 @@ test(`GET '/sipData' should return sip auth data for user`, async (t) => {
 		clock.restore();
 		t.true(response.ok);
 		t.true(stub1.called);
+		t.is(stub1.lastCall.args[1], 'endpointId');
 		t.deepEqual(response.body, {
 			phoneNumber: '+1234567890',
 			sipUri: 'sip:test@test.net',
@@ -256,7 +257,6 @@ test(`DELETE '/voiceMessages/:id' should delete voice message`, async (t) => {
 test.serial(`GET '/voiceMessagesStream should listen to server side events`, async (t) => {
 	await runWithServer(async (request, app, server) => {
 		let response = await request.login('voiceMessages4');
-		console.log(response.text);
 		t.true(response.ok);
 		const user = await models.user.findOne({ userName: 'voiceMessages4' }).exec();
 		const token = await (<any>(jwt.sign)).promise(user.id, jwtToken, {});
@@ -346,7 +346,7 @@ test(`POST '/recordGreeting' should make call callback`, async (t) => {
 test(`POST '/callCallback' should handle outgoing call`, async (t) => {
 	await runWithServer(async (request, app) => {
 		const stub = sinon.stub(app.api, 'transferCall')
-			.withArgs('+1472583690', '+1234567890')
+			.withArgs('callID', '+1472583690', '+1234567890')
 			.returns(Promise.resolve());
 		const user = await createUser('ouser1');
 		await models.user.update({ _id: user.id }, { $set: { sipUri: 'sip:otest@test.com' } });
