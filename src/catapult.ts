@@ -97,7 +97,8 @@ export class CatapultApi implements ICatapultApi {
 	async createSIPAuthToken(ctx: IContext, endpointId: string): Promise<ISIPAuthToken> {
 		debug('Creating SIP account auth token');
 		const domain = await this.getDomain(ctx);
-		return <ISIPAuthToken>(await this.catapult.Endpoint.createAuthToken(domain.id, endpointId));
+		debug(`Creating auth token for domain ${domain.id} and endpoint ${endpointId}`);
+		return <ISIPAuthToken>(await this.catapult.Endpoint.createAuthToken(domain.id, endpointId, {expires: 3600}));
 	}
 
 	async createBridge(data: any): Promise<string> {
