@@ -14,12 +14,9 @@
     },
     "CATAPULT_API_SECRET": {
       "description": "Your Catapult Api Secret"
-    },
-		"NODE_ENV": {
-			"value": "production"
-		}
+    }
   },
 	"scripts": {
-    "postdeploy": "NODE_ENV=development npm install && npm run build"
+    "postdeploy": "npm run build"
   }
 }
