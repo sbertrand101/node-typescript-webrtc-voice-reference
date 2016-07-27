@@ -18,8 +18,5 @@
 		"NODE_ENV": {
 			"value": "production"
 		}
-  },
-	"scripts": {
-    "postdeploy": "npm install typings typescript@1.8 && rm -rf ./test && npm run build && npm uninstall typings typescript"
   }
 }

@@ -42,7 +42,7 @@
   },
   "scripts": {
     "clean": "rimraf src/*.js test/*.js",
-		"build": "npm run typings && npm run tsc",
+    "build": "npm run typings && npm run tsc",
     "make": "npm run lint && npm run build",
     "lint": "npm run clean && tslint src/* test/*",
     "start": "node src/index.js",

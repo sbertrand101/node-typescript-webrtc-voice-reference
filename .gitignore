@@ -39,3 +39,5 @@ docker-compose.yml
 *.js
 *.map
 *.d.ts
+.test
+typings
