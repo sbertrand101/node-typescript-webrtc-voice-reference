@@ -42,7 +42,8 @@
   },
   "scripts": {
     "clean": "rimraf src/*.js test/*.js",
-    "make": "npm run lint && npm run typings && npm run tsc",
+		"build": "npm run typings && npm run tsc",
+    "make": "npm run lint && npm run build",
     "lint": "npm run clean && tslint src/* test/*",
     "start": "node src/index.js",
     "dev:start": "npm run tsc && concurrently -k \"npm run tsc:w\" \"nodemon -e js --ignore typings/ src/index.js\"",

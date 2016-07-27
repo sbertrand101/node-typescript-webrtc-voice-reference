@@ -20,6 +20,6 @@
 		}
   },
 	"scripts": {
-    "postdeploy": "npm run make"
+    "postdeploy": "npm run build"
   }
 }
