@@ -24,14 +24,11 @@ Uses the:
 * ```CATAPULT_USER_ID```
 * ```CATAPULT_API_TOKEN```
 * ```CATAPULT_API_SECRET```
-* ```CATAPULT_DOMAIN_NAME```
 
 [![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)
 
 ## Install
 Before running export next environment variables :
-
-```CATAPULT_DOMAIN_NAME``` - domain name (it will be created by the app if need),
 
 ```CATAPULT_USER_ID```, ```CATAPULT_API_TOKEN```, ```CATAPULT_API_TOKEN``` - auth data for Catapult API (to search and reserve a phone number, etc)
 
@@ -53,7 +50,6 @@ Run `heroku addons:create mongolab` to add mongodb support.
 Configure the app by commands
 
 ```
- heroku config:set CATAPULT_DOMAIN_NAME=your-domain
  heroku config:set CATAPULT_USER_ID=your-user-id
  heroku config:set CATAPULT_API_TOKEN=your-token
  heroku config:set CATAPULT_API_SECRET=your-secret
@@ -63,17 +59,7 @@ Run `git push heroku master` to deploy this project.
 
 Run `heroku open` to see home page of the app in the browser
 
+## Docker usage
 
-## Http routes
-
-```
-GET /users/{userName} with json response
-
-PUT /users/{userName}
-
-DELETE /users/{userName}
-
-POST /users with required json payload {"userName": "", "password": "" }  and with json response (register an user)
-
-POST /users/{userName}/callback with json payload (handle Catapult call events)
-```
+You can use this app inside docker containers. The app tries to build connection string to db using environment variables `MONGO_PORT_27017_TCP_ADDR` and `MONGO_PORT_27017_TCP_PORT`.
+So you can pass option `--link your-mongo-container:mongo` to `docker run` and the app will connect to database itself.
