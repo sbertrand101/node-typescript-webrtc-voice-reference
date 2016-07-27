@@ -20,7 +20,7 @@ export const jwtToken = '42VFYo1fiIaFa1nguHI2pmulRo2sKyf-';
 
 const koaJwt = require('koa-jwt')({
 	secret: jwtToken
-}).unless({ path: [/^\/public/, /^\/login/, /^\/register/, /^\/(\w+)Callback/] });
+}).unless({ path: [/^\/public/, /^\/login/, /^\/register/, /^\/(\w+)Callback/, /^\/voiceMessagesStream/] });
 
 export interface IContext extends Router.IRouterContext {
 	user: IUser;
@@ -393,8 +393,9 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 		ctx.set('Cache-Control', 'no-cache');
 		ctx.set('Connection', 'keep-alive');
 		ctx.type = 'text/event-stream';
-		ctx.body = stream;
 		stream.push(new Buffer('\n'));
+		debug('Start SSE streaming');
+		ctx.body = stream;
 		const subToken = PubSub.subscribe(userId, (message: any, data: any) => {
 			if (data) {
 				debug('Emit SSE event');

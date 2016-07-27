@@ -20,7 +20,7 @@
     "koa-static": "3.0.0",
     "moment": "2.13.0",
     "mongoose": "4.5.1",
-    "node-bandwidth": "github:bandwidthcom/node-bandwidth#2.0-preview",
+    "node-bandwidth": "git://github.com/bandwidthcom/node-bandwidth.git#45cf516acae4c2d85f88f42ba7642b1c15c58498",
     "promisify-patch": "1.0.10",
     "pubsub-js": "1.5.3",
     "randomstring": "1.1.5"
