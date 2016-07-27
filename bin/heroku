@@ -1,0 +1,9 @@
+if [ ! -f src/index.js ]
+then
+    npm install typings typescript@1.8
+		mv test .test
+		npm run build
+		npm uninstall typings typescript
+		mv .test test
+fi
+node src/index.js
