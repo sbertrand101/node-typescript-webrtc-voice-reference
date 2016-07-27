@@ -399,7 +399,7 @@ export default function getRouter(app: Koa, models: IModels, api: ICatapultApi):
 		const subToken = PubSub.subscribe(userId, (message: any, data: any) => {
 			if (data) {
 				debug('Emit SSE event');
-				stream.push(new Buffer(`id: ${data.id}\ndata: ${JSON.stringify(data)}\n\n`));
+				stream.push(new Buffer(`data: ${JSON.stringify(data)}\n\n`));
 			}
 		});
 		const close = () => {
