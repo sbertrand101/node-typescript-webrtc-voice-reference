@@ -297,7 +297,7 @@ test.serial(`GET '/voiceMessagesStream should listen to server side events`, asy
 			_write(chunk: any, encoding: string, callback: Function): void {
 				const text = chunk.toString();
 				if (text !== '\n') {
-					t.is(text, 'id: id\ndata: {"id":"id","message":"message"}\n\n');
+					t.is(text, 'data: {"id":"id","message":"message"}\n\n');
 				}
 				sseCalled = true;
 				callback();
