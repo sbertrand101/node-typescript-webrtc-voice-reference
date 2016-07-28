@@ -3,6 +3,9 @@
   "version": "2.0.0",
   "description": "This application demonstrates how to implement voice calling for mobile devices, browsers (WebRTC), and any SIP client using the Catapult API",
   "main": "src/index.js",
+	"engines": {
+    "node": "4.4"
+  },
   "ava": {
     "files": [
       "test/**/*.test.js"
