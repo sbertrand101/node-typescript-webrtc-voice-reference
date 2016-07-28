@@ -17,7 +17,7 @@ Uses the:
   - [Ngrok](https://ngrok.com/)
   - [Heroku](https://www.heroku.com/)
 - [Catapult Account](http://ap.bandwidth.com/?utm_medium=social&utm_source=github&utm_campaign=dtolb&utm_content=_)
-- [Node 4.2+](https://nodejs.org/en/download/releases/)
+- [Node 4.4+](https://nodejs.org/en/download/releases/)
 - [MongoDb 2.2+](https://www.mongodb.org/downloads)
 
 ## Deploy To PaaS
