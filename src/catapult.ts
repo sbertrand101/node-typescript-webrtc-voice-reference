@@ -36,7 +36,7 @@ export interface ISIPAccount {
 
 export interface ISIPAuthToken {
 	token: string;
-	expires: string;
+	expires: any;
 }
 
 export interface ICall {
@@ -66,7 +66,7 @@ export class CatapultApi implements ICatapultApi {
 	}
 
 	async createPhoneNumber(ctx: IContext, areaCode: string): Promise<string> {
-		debug(`Reserving a new phone number for area code #{areaCode}`);
+		debug(`Reserving a new phone number for area code ${areaCode}`);
 		const applicationId = await this.getApplicationId(ctx);
 		debug(`Search and order available number`);
 		const numbers = await this.catapult.AvailableNumber.searchAndOrder('local', { areaCode, quantity: 1 });
@@ -199,7 +199,7 @@ export class CatapultApi implements ICatapultApi {
 			debug(`Using cached domain info for ${domainInfo.name}`);
 			return Object.assign(<IDomainInfo>{}, domainInfo);
 		}
-		const description = `${applicationName}'s domain'`;
+		const description = `${applicationName}'s domain`;
 		const domains = (await this.catapult.Domain.list({ size: 100 })).domains;
 		let domain = domains.filter((d: any) => d.description === description)[0];
 		if (domain) {

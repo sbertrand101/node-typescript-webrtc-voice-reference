@@ -10,7 +10,6 @@
 		"bcryptjs": "registry:dt/bcryptjs#2.3.0+20151217030501",
 		"koa": "registry:dt/koa#2.0.0+20160619030120",
 		"koa-router": "registry:dt/koa-router#7.0.0+20160314083221",
-		"nock": "registry:dt/nock#0.54.0+20160613160405",
 		"node": "registry:dt/node#6.0.0+20160621231320",
 		"pubsub": "registry:dt/pubsub#1.5.2+20160317120654",
 		"randomstring": "registry:dt/randomstring#1.1.4+20160509083842",
