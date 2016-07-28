@@ -603,6 +603,16 @@ test(`POST '/callCallback' should handle hangup of completed calls`, async (t) =
 		});
 });
 
+test(`POST '/callCallback' should do nothing on hangup of other calls`, async (t) => {
+		await runWithServer(async (request, app, server) => {
+		const response = <Response><any>(await request.post(`/callCallback`).send({
+			callId: 'c2callID',
+			eventType: 'hangup'
+		}));
+		t.true(response.ok);
+		});
+});
+
 test(`POST '/recordCallback' should play voice menu on answer`, async (t) => {
 	await runWithServer(async (request, app) => {
 		const stub = sinon.stub(app.api, 'createGather').returns(Promise.resolve({
@@ -735,6 +745,18 @@ test(`POST '/recordCallback' should write recording on complete`, async (t) => {
 		t.true(stub2.called);
 		user = await models.user.findById(user.id.toString()).exec();
 		t.is(user.greetingUrl, 'url');
+	});
+});
+
+test(`POST '/recordCallback' should do nothing for non-completed recording`, async (t) => {
+	await runWithServer(async (request, app) => {
+		const response = <Response><any>(await request.post(`/recordCallback`).send({
+			eventType: 'recording',
+			state: 'start',
+			callId: 'rccallID51',
+			recordingId: 'recordingID'
+		}));
+		t.true(response.ok);
 	});
 });
 
