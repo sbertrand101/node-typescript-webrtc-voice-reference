@@ -1,9 +1,0 @@
-"use strict";
-const path = require('path');
-const staticFilesOptions = {
-    root: path.join(__dirname, '..', 'public'),
-    maxage: (process.env.NODE_ENV === 'production') ? 3600000 : 0
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.default = staticFilesOptions;
-//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoic3RhdGljRmlsZXNPcHRpb25zLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsic3RhdGljRmlsZXNPcHRpb25zLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSxNQUFZLElBQUksV0FBTSxNQUFNLENBQUMsQ0FBQTtBQUU3QixNQUFNLGtCQUFrQixHQUFHO0lBQzFCLElBQUksRUFBRSxJQUFJLENBQUMsSUFBSSxDQUFDLFNBQVMsRUFBRSxJQUFJLEVBQUUsUUFBUSxDQUFDO0lBQzFDLE1BQU0sRUFBRSxDQUFDLE9BQU8sQ0FBQyxHQUFHLENBQUMsUUFBUSxLQUFLLFlBQVksQ0FBQyxHQUFHLE9BQU8sR0FBRyxDQUFDO0NBQzdELENBQUM7QUFFRjtrQkFBZSxrQkFBa0IsQ0FBQyIsInNvdXJjZXNDb250ZW50IjpbImltcG9ydCAqIGFzIHBhdGggZnJvbSAncGF0aCc7XG5cbmNvbnN0IHN0YXRpY0ZpbGVzT3B0aW9ucyA9IHtcblx0cm9vdDogcGF0aC5qb2luKF9fZGlybmFtZSwgJy4uJywgJ3B1YmxpYycpLFxuXHRtYXhhZ2U6IChwcm9jZXNzLmVudi5OT0RFX0VOViA9PT0gJ3Byb2R1Y3Rpb24nKSA/IDM2MDAwMDAgOiAwXG59O1xuXG5leHBvcnQgZGVmYXVsdCBzdGF0aWNGaWxlc09wdGlvbnM7XG4iXX0=
