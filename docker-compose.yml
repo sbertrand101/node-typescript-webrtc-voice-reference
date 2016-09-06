@@ -1,0 +1,16 @@
+version: '2'
+services:
+    dev:
+        build: .
+        ports: 
+            - "3000:3000"
+        depends_on:
+            - mongo
+        environment:
+            - DATABASE_URL=mongodb://mongo/db
+        env_file: .env
+        restart: always
+
+    mongo:
+        image: mongo
+        restart: always
