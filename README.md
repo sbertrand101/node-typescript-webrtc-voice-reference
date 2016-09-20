@@ -47,7 +47,7 @@ Create account on [Heroku](https://www.heroku.com/) and install [Heroku Toolbel]
 
 Run `heroku create` to create new app on Heroku and link it with current project.
 
-Run `heroku addons:create mongolab` to add mongodb support. 
+Run `heroku addons:create mongolab` to add mongodb support.
 
 Configure the app by commands
 
@@ -63,5 +63,13 @@ Run `heroku open` to see home page of the app in the browser
 
 ## Docker usage
 
-You can use this app inside docker containers. The app tries to build connection string to db using environment variables `MONGO_PORT_27017_TCP_ADDR` and `MONGO_PORT_27017_TCP_PORT`.
-So you can pass option `--link your-mongo-container:mongo` to `docker run` and the app will connect to database itself.
+You can use docker-compose to run this app.
+
+Fill file `.env` with valid auth data and then run
+
+```
+	docker-compose up -d
+```
+
+Now the app is available from `http://localhost:3000`. Use `ngrok` and any frontend server to open external access to this app.
+
